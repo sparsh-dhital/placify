@@ -11,9 +11,8 @@ import {
 import {
   generateMatches,
   submitShortlistApproval,
-  MatchResponse,
-  ShortlistDecision,
 } from "../../services/api";
+import type { MatchResponse, ShortlistDecision } from "../../services/api";
 
 export default function Shortlist() {
   const [isLoading, setIsLoading] = useState(true);

@@ -2,7 +2,6 @@
 import {
   Bot,
   User,
-  CheckCircle2,
   AlertTriangle,
   ShieldCheck,
   Clock,

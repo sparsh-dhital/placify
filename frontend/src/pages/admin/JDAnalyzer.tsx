@@ -7,7 +7,8 @@ import {
   Sparkles,
   Wand2,
 } from "lucide-react";
-import { analyzeJD, JDAnalysisResponse } from "../../services/api"; // Updated import path
+import { analyzeJD } from "../../services/api";
+import type { JDAnalysisResponse } from "../../services/api";
 
 export default function JDAnalyzer() {
   const [jdText, setJdText] = useState("");

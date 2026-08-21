@@ -8,8 +8,8 @@ import {
   AlertCircle,
   ChevronRight,
 } from "lucide-react";
-import {
-  runEligibility,
+import { runEligibility } from "../../services/api";
+import type {
   EligibilityResponse,
   EligibilityResult,
 } from "../../services/api";

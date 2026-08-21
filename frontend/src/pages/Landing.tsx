@@ -253,6 +253,50 @@ export default function Landing() {
           </div>
         </section>
 
+        {/* Final Prototype Feature Narrative */}
+        <section className="w-full max-w-6xl px-2 sm:px-0 mb-16 sm:mb-20">
+          <div className="rounded-[2rem] sm:rounded-[2.5rem] border border-slate-200 dark:border-white/10 bg-white dark:bg-[#0A0A12]/80 backdrop-blur-2xl p-6 sm:p-10 md:p-14 shadow-xl shadow-slate-900/5">
+            <div className="space-y-6 text-slate-900 dark:text-white">
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight leading-tight">
+                7. AI Campus Placement Operations &amp; Interview Coordination Agent
+              </h2>
+
+              <p className="text-xl sm:text-2xl font-medium italic text-slate-700 dark:text-slate-300">
+                Domain: College / Placement / Employability / Agentic AI
+              </p>
+
+              <p className="text-xl sm:text-2xl md:text-3xl font-medium leading-relaxed text-slate-800 dark:text-slate-200">
+                <span className="font-bold">Problem Statement:</span> Campus placement requires eligibility checking,
+                job-description analysis, candidate matching, interview scheduling,
+                panel coordination, venue management and repeated communication.
+              </p>
+
+              <p className="text-xl sm:text-2xl md:text-3xl font-medium leading-relaxed text-slate-800 dark:text-slate-200">
+                <span className="font-bold">Objective:</span> Develop an AI placement operations agent that coordinates
+                the workflow from company requirements through eligibility verification,
+                candidate matching, interview scheduling and event reporting, while
+                retaining human control over final selection.
+              </p>
+
+              <div className="pt-4">
+                <h3 className="text-3xl sm:text-4xl font-black tracking-tight mb-6">
+                  Expected Prototype Features
+                </h3>
+                <ul className="space-y-4 text-xl sm:text-2xl font-medium leading-relaxed text-slate-700 dark:text-slate-300 list-disc list-inside marker:text-indigo-500">
+                  <li>Job-description and eligibility extraction.</li>
+                  <li>Student eligibility verification.</li>
+                  <li>Skill-based candidate matching with explanations.</li>
+                  <li>Interview and test scheduling.</li>
+                  <li>Panel and room coordination.</li>
+                  <li>Student notifications and reminders.</li>
+                  <li>Placement dashboard with pending actions and exceptions.</li>
+                  <li>Skill-gap and placement-readiness analytics.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* Support Section */}
         <section className="w-full max-w-3xl text-left relative z-10 mb-12 px-2 sm:px-0">
           <div className="bg-white dark:bg-[#0A0A12]/90 backdrop-blur-3xl border border-slate-200 dark:border-white/10 rounded-[2rem] sm:rounded-[2.5rem] p-6 sm:p-12 md:p-14 shadow-xl relative overflow-hidden">

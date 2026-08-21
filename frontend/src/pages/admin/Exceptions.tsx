@@ -1,12 +1,10 @@
 // src/pages/admin/Exceptions.tsx
 import { useState } from "react";
 import {
-  AlertTriangle,
   ShieldAlert,
-  CheckCircle2,
-  Play,
   Bot,
   ArrowRight,
+  CheckCircle2,
 } from "lucide-react";
 
 interface ExceptionItem {

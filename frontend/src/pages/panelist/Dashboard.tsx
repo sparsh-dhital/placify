@@ -9,15 +9,37 @@ import {
   MessageSquare,
   Send,
   Star,
-  ChevronRight,
   Briefcase,
+  Calendar,
 } from "lucide-react";
 import {
   getPanelInterviews,
   submitInterviewFeedback,
-  PanelDashboardResponse,
-  PanelInterview,
 } from "../../services/api";
+import type { PanelDashboardResponse, PanelInterview } from "../../services/api";
+
+function StarRating({
+  label,
+  score,
+  setScore,
+}: {
+  label: string;
+  score: number;
+  setScore: (value: number) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-[#05050A] border border-slate-200 dark:border-white/5">
+      <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">{label}</span>
+      <div className="flex gap-1">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <button key={star} type="button" onClick={() => setScore(star)} className="focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded-sm transition-transform hover:scale-110 cursor-none">
+            <Star className={`w-5 h-5 transition-colors ${star <= score ? "fill-amber-400 text-amber-400" : "fill-transparent text-slate-300 dark:text-slate-600"}`} />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function PanelistDashboard() {
   const [isLoading, setIsLoading] = useState(true);
@@ -94,43 +116,6 @@ export default function PanelistDashboard() {
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  // Helper component for Star Rating
-  const StarRating = ({
-    label,
-    score,
-    setScore,
-  }: {
-    label: string;
-    score: number;
-    setScore: (val: number) => void;
-  }) => {
-    return (
-      <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-[#05050A] border border-slate-200 dark:border-white/5">
-        <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-          {label}
-        </span>
-        <div className="flex gap-1">
-          {[1, 2, 3, 4, 5].map((star) => (
-            <button
-              key={star}
-              type="button"
-              onClick={() => setScore(star)}
-              className="focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded-sm transition-transform hover:scale-110 cursor-none"
-            >
-              <Star
-                className={`w-5 h-5 transition-colors ${
-                  star <= score
-                    ? "fill-amber-400 text-amber-400"
-                    : "fill-transparent text-slate-300 dark:text-slate-600"
-                }`}
-              />
-            </button>
-          ))}
-        </div>
-      </div>
-    );
   };
 
   if (isLoading) {

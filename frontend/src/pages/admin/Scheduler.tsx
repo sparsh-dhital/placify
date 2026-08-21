@@ -10,7 +10,8 @@ import {
   MapPin,
   UsersRound,
 } from "lucide-react";
-import { generateSchedule, ScheduleResponse } from "../../services/api";
+import { generateSchedule } from "../../services/api";
+import type { ScheduleResponse } from "../../services/api";
 
 export default function Scheduler() {
   const [isProcessing, setIsProcessing] = useState(false);

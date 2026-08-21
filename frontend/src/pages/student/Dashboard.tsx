@@ -1,5 +1,6 @@
 // src/pages/student/Dashboard.tsx
 import { useState, useEffect } from "react";
+import type { ChangeEvent } from "react";
 import {
   User,
   Target,
@@ -9,21 +10,50 @@ import {
   BrainCircuit,
   CheckCircle2,
   XCircle,
-  ChevronRight,
   Sparkles,
   AlertCircle,
 } from "lucide-react";
 import {
   getStudentDashboard,
+  parseStudentResume,
+} from "../../services/api";
+import type {
+  ResumeMatchResult,
   StudentDashboardResponse,
 } from "../../services/api";
 
 export default function StudentDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [data, setData] = useState<StudentDashboardResponse | null>(null);
+  const [resumeResult, setResumeResult] = useState<ResumeMatchResult | null>(null);
+  const [isParsing, setIsParsing] = useState(false);
+  const [selectedFileName, setSelectedFileName] = useState<string>("");
 
   // Hardcoded student ID for demonstration
   const activeStudentId = "s1";
+
+  const handleResumeUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setSelectedFileName(file.name);
+    setIsParsing(true);
+
+    try {
+      const result = await parseStudentResume(file, {
+        company: "TechNova Solutions",
+        role: "Software Engineer",
+        matched_skills: ["Python", "SQL", "Git", "React"],
+        missing_skills: ["Docker"],
+      });
+      setResumeResult(result);
+    } catch (error) {
+      console.error("Resume parsing failed:", error);
+      setResumeResult(null);
+    } finally {
+      setIsParsing(false);
+    }
+  };
 
   useEffect(() => {
     const fetchDashboard = async () => {
@@ -270,19 +300,119 @@ export default function StudentDashboard() {
             <div className="mt-6 pt-6 border-t border-slate-200 dark:border-white/10">
               <div className="flex items-start gap-3 p-4 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20">
                 <AlertCircle className="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
-                <div>
+                <div className="w-full">
                   <h4 className="text-sm font-bold text-indigo-900 dark:text-indigo-300">
-                    Action Required
+                    Resume Eligibility Check
                   </h4>
                   <p className="text-xs text-indigo-700 dark:text-indigo-400 mt-1">
-                    Upload your latest resume to recalculate your skill vectors
-                    and match scores.
+                    Upload your latest resume to parse skills, check matching requirements, and compute eligibility score.
                   </p>
-                  <button className="mt-3 px-3 py-1.5 bg-indigo-600 text-white text-xs font-bold rounded-lg hover:bg-indigo-500 transition-colors cursor-none">
-                    Upload Resume
-                  </button>
+
+                  <label className="mt-3 flex cursor-pointer items-center justify-center rounded-xl border border-dashed border-indigo-300 bg-white px-3 py-3 text-sm font-semibold text-indigo-700 transition hover:border-indigo-400 hover:bg-indigo-50 dark:bg-[#0A0A12] dark:text-indigo-300">
+                    <input
+                      type="file"
+                      accept=".pdf,.txt,.jpg,.jpeg,.png,.webp"
+                      className="hidden"
+                      onChange={handleResumeUpload}
+                    />
+                    {isParsing ? "Parsing resume..." : "Upload Resume"}
+                  </label>
+
+                  {selectedFileName && (
+                    <p className="mt-2 text-xs text-slate-600 dark:text-slate-300">
+                      Selected: {selectedFileName}
+                    </p>
+                  )}
                 </div>
               </div>
+
+              {resumeResult && (
+                <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-[#05050A]">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                        {resumeResult.company}
+                      </p>
+                      <h5 className="text-lg font-bold text-slate-900 dark:text-white">
+                        {resumeResult.role}
+                      </h5>
+                    </div>
+                    <div
+                      className={`rounded-xl border px-2.5 py-1.5 text-sm font-bold ${
+                        resumeResult.eligibility_status === "Eligible"
+                          ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400"
+                          : resumeResult.eligibility_status === "Borderline"
+                            ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-400"
+                            : "border-red-200 bg-red-50 text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400"
+                      }`}
+                    >
+                      {resumeResult.eligibility_score}%
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                        Matched Skills
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {resumeResult.matched_skills.length ? (
+                          resumeResult.matched_skills.map((skill) => (
+                            <span key={skill} className="rounded-full bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
+                              {skill}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-xs text-slate-500 dark:text-slate-400">No direct matches found</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                        Missing Skills
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {resumeResult.missing_skills.length ? (
+                          resumeResult.missing_skills.map((skill) => (
+                            <span key={skill} className="rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-700 dark:bg-red-500/10 dark:text-red-300">
+                              {skill}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-xs text-slate-500 dark:text-slate-400">No critical gaps</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 rounded-xl border border-slate-200 bg-white p-3 dark:border-white/10 dark:bg-[#0A0A12]">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      Extracted Candidate Info
+                    </p>
+                    <div className="mt-2 grid gap-2 text-sm text-slate-700 dark:text-slate-300">
+                      <p><span className="font-semibold">Name:</span> {resumeResult.parsed.name}</p>
+                      <p><span className="font-semibold">Email:</span> {resumeResult.parsed.email}</p>
+                      <p><span className="font-semibold">Phone:</span> {resumeResult.parsed.phone}</p>
+                      <p><span className="font-semibold">CGPA:</span> {resumeResult.parsed.cgpa ?? "N/A"}</p>
+                      <p><span className="font-semibold">Skills:</span> {resumeResult.parsed.skills.join(", ") || "No skills detected"}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      Requirement Match Summary
+                    </p>
+                    <ul className="mt-2 space-y-1 text-sm text-slate-700 dark:text-slate-300">
+                      {resumeResult.reasons.map((reason) => (
+                        <li key={reason} className="list-disc pl-5">
+                          {reason}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

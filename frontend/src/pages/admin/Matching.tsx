@@ -10,11 +10,8 @@ import {
   Sparkles,
   ShieldCheck,
 } from "lucide-react";
-import {
-  generateMatches,
-  MatchResponse,
-  MatchResult,
-} from "../../services/api";
+import { generateMatches } from "../../services/api";
+import type { MatchResponse, MatchResult } from "../../services/api";
 
 export default function Matching() {
   const [isProcessing, setIsProcessing] = useState(false);
