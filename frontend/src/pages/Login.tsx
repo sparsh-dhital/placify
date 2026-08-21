@@ -1,6 +1,13 @@
+// src/pages/Login.tsx
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Mail, ArrowLeft, ArrowRight, ShieldCheck } from "lucide-react";
+import {
+  Mail,
+  ArrowLeft,
+  ArrowRight,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
 import { Logo } from "../components/ui/Logo";
 // @ts-expect-error -- ThemeToggle is a JS module without TypeScript declarations
 import ThemeToggle from "../components/ui/ThemeToggle";
@@ -28,10 +35,10 @@ export default function Login() {
       {/* Ambient Backlighting */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-gradient-to-b from-indigo-500/15 via-cyan-500/5 to-transparent blur-[120px] pointer-events-none rounded-full hidden dark:block" />
 
-      {/* Back to Home Button (Premium Pill Style) */}
+      {/* Back to Home Button */}
       <Link
         to="/"
-        className="absolute top-5 left-5 sm:top-8 sm:left-8 flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300 bg-white/80 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-full backdrop-blur-2xl hover:bg-slate-50 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white hover:scale-[1.03] active:scale-95 transition-all duration-300 cursor-none shadow-sm z-20 group"
+        className="absolute top-5 left-5 sm:top-8 sm:left-8 flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300 bg-white/80 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-full backdrop-blur-2xl hover:bg-slate-50 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white transition-all duration-300 cursor-none shadow-sm z-20 group"
       >
         <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 group-hover:-translate-x-1 transition-transform" />
         Home
@@ -55,8 +62,7 @@ export default function Login() {
         </div>
 
         {/* Login Form Card */}
-        <div className="bg-white dark:bg-[#0A0A12]/90 backdrop-blur-3xl border border-slate-200 dark:border-white/10 rounded-[2rem] p-6 sm:p-10 shadow-2xl relative overflow-hidden">
-          {/* Subtle Card Inner Glow */}
+        <div className="bg-white dark:bg-[#0A0A12]/80 backdrop-blur-2xl border border-slate-200 dark:border-white/10 rounded-[2.5rem] p-6 sm:p-10 shadow-2xl relative overflow-hidden">
           <div className="absolute -top-24 -right-24 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
 
           <form
@@ -122,14 +128,14 @@ export default function Login() {
             </div>
 
             {/* Relevant Security Badge */}
-            <div className="flex items-center justify-center gap-2 mt-4 text-emerald-600 dark:text-emerald-400 text-xs font-medium bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 py-2 rounded-xl">
+            <div className="flex items-center justify-center gap-2 mt-4 text-emerald-600 dark:text-emerald-400 text-xs font-medium bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 py-2.5 rounded-xl">
               <ShieldCheck className="w-4 h-4" />
               Enterprise SSO Enforced
             </div>
 
             <button
               type="submit"
-              className="w-full flex items-center justify-center gap-2 py-3.5 px-6 mt-4 bg-indigo-600 hover:bg-indigo-500 dark:bg-indigo-600 dark:hover:bg-indigo-500 text-white text-sm font-semibold rounded-2xl hover:scale-[1.01] active:scale-95 transition-all cursor-none shadow-xl shadow-indigo-600/25 group"
+              className="w-full flex items-center justify-center gap-2 py-3.5 px-6 mt-4 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-2xl hover:scale-[1.01] active:scale-95 transition-all cursor-none shadow-xl shadow-indigo-600/25 group"
             >
               Continue with SSO
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />

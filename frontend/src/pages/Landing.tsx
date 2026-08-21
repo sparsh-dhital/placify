@@ -1,3 +1,4 @@
+// src/pages/Landing.tsx
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
@@ -24,9 +25,9 @@ export default function Landing() {
       {/* Ambient Backlighting (Dark Mode Only) */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[350px] bg-gradient-to-b from-indigo-500/10 via-cyan-500/5 to-transparent blur-[120px] pointer-events-none rounded-full hidden dark:block" />
 
-      {/* Navbar */}
+      {/* Sticky Navbar */}
       <nav
-        className="w-full flex items-center justify-between px-5 sm:px-10 py-4 border-b border-slate-200/80 dark:border-white/10 bg-white/80 dark:bg-[#05050A]/80 backdrop-blur-2xl sticky top-0 z-50 transition-colors"
+        className="w-full flex items-center justify-between px-5 sm:px-10 py-4 border-b border-slate-200/80 dark:border-white/10 bg-white/80 dark:bg-[#05050A]/80 backdrop-blur-2xl sticky top-0 z-50 transition-colors shadow-sm"
         aria-label="Main Navigation"
       >
         <div className="flex items-center gap-3">
@@ -42,7 +43,7 @@ export default function Landing() {
           <ThemeToggle />
           <Link
             to="/login"
-            className="group relative inline-flex items-center justify-center px-4 sm:px-5 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 dark:bg-indigo-600 dark:hover:bg-indigo-500 rounded-full overflow-hidden transition-all duration-300 hover:scale-[1.03] active:scale-95 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-lg shadow-indigo-600/25 shrink-0 whitespace-nowrap"
+            className="group relative inline-flex items-center justify-center px-4 sm:px-5 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 dark:bg-indigo-600 dark:hover:bg-indigo-500 rounded-full overflow-hidden transition-all duration-300 hover:scale-[1.03] active:scale-95 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-lg shadow-indigo-600/25 shrink-0 whitespace-nowrap cursor-none"
           >
             <span className="relative flex items-center gap-1.5">
               Get Started{" "}
@@ -248,50 +249,6 @@ export default function Landing() {
                     Approve
                   </div>
                 </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Final Prototype Feature Narrative */}
-        <section className="w-full max-w-6xl px-2 sm:px-0 mb-16 sm:mb-20">
-          <div className="rounded-[2rem] sm:rounded-[2.5rem] border border-slate-200 dark:border-white/10 bg-white dark:bg-[#0A0A12]/80 backdrop-blur-2xl p-6 sm:p-10 md:p-14 shadow-xl shadow-slate-900/5">
-            <div className="space-y-6 text-slate-900 dark:text-white">
-              <h2 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight leading-tight">
-                7. AI Campus Placement Operations &amp; Interview Coordination Agent
-              </h2>
-
-              <p className="text-xl sm:text-2xl font-medium italic text-slate-700 dark:text-slate-300">
-                Domain: College / Placement / Employability / Agentic AI
-              </p>
-
-              <p className="text-xl sm:text-2xl md:text-3xl font-medium leading-relaxed text-slate-800 dark:text-slate-200">
-                <span className="font-bold">Problem Statement:</span> Campus placement requires eligibility checking,
-                job-description analysis, candidate matching, interview scheduling,
-                panel coordination, venue management and repeated communication.
-              </p>
-
-              <p className="text-xl sm:text-2xl md:text-3xl font-medium leading-relaxed text-slate-800 dark:text-slate-200">
-                <span className="font-bold">Objective:</span> Develop an AI placement operations agent that coordinates
-                the workflow from company requirements through eligibility verification,
-                candidate matching, interview scheduling and event reporting, while
-                retaining human control over final selection.
-              </p>
-
-              <div className="pt-4">
-                <h3 className="text-3xl sm:text-4xl font-black tracking-tight mb-6">
-                  Expected Prototype Features
-                </h3>
-                <ul className="space-y-4 text-xl sm:text-2xl font-medium leading-relaxed text-slate-700 dark:text-slate-300 list-disc list-inside marker:text-indigo-500">
-                  <li>Job-description and eligibility extraction.</li>
-                  <li>Student eligibility verification.</li>
-                  <li>Skill-based candidate matching with explanations.</li>
-                  <li>Interview and test scheduling.</li>
-                  <li>Panel and room coordination.</li>
-                  <li>Student notifications and reminders.</li>
-                  <li>Placement dashboard with pending actions and exceptions.</li>
-                  <li>Skill-gap and placement-readiness analytics.</li>
-                </ul>
               </div>
             </div>
           </div>

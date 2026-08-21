@@ -1,8 +1,15 @@
+// src/App.tsx
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import CustomCursor from "./components/ui/CustomCursor";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
-import DashboardLayout from "./components/layout/DashboardLayout";
+
+// Layouts
+import DashboardLayout from "./components/layout/DashboardLayout"; // Admin Layout (with Sidebar)
+import StudentLayout from "./components/layout/StudentLayout"; // Student Isolated Shell
+import PanelistLayout from "./components/layout/PanelistLayout"; // Panelist Isolated Shell
+
+// Pages
 import AdminDash from "./pages/AdminDash";
 import StudentDashboard from "./pages/student/Dashboard";
 import PanelistDashboard from "./pages/panelist/Dashboard";
@@ -26,11 +33,9 @@ function App() {
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
 
-        {/* Authenticated Command Center Routes */}
+        {/* 1. Admin Command Center Layout (Includes Operational Sidebar) */}
         <Route element={<DashboardLayout />}>
           <Route path="/admin" element={<AdminDash />} />
-          <Route path="/student" element={<StudentDashboard />} />
-          <Route path="/panelist" element={<PanelistDashboard />} />
           <Route path="/admin/placements" element={<Shortlist />} />
           <Route path="/admin/candidates" element={<Eligibility />} />
           <Route path="/admin/jds" element={<JDAnalyzer />} />
@@ -41,6 +46,16 @@ function App() {
           <Route path="/admin/analytics" element={<Analytics />} />
           <Route path="/admin/activity" element={<AdminActivity />} />
           <Route path="/admin/exceptions" element={<Exceptions />} />
+        </Route>
+
+        {/* 2. Student Portal Shell (Isolated from Admin Sidebars) */}
+        <Route element={<StudentLayout />}>
+          <Route path="/student" element={<StudentDashboard />} />
+        </Route>
+
+        {/* 3. Panelist Workspace Shell (Isolated from Admin Sidebars) */}
+        <Route element={<PanelistLayout />}>
+          <Route path="/panelist" element={<PanelistDashboard />} />
         </Route>
       </Routes>
     </BrowserRouter>
