@@ -1,35 +1,36 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import CustomCursor from "./components/ui/CustomCursor";
+import Landing from "./pages/Landing";
 import Login from "./pages/Login";
-import DashboardLayout from "./components/layout/DashboardLayout.tsx";
+import DashboardLayout from "./components/layout/DashboardLayout";
 import AdminDash from "./pages/AdminDash";
 import StudentDash from "./pages/StudentDash";
-import PanelistDash from "./pages/PanelistDash.tsx";
+import PanelistDash from "./pages/PanelistDash";
 
 function App() {
   return (
     <BrowserRouter>
+      {/* Global Awwwards Custom Cursor */}
+      <CustomCursor />
+
       <Routes>
-        {/* Public Route */}
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        {/* Public Routes */}
+        <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
 
-        {/* Authenticated Dashboard Routes */}
+        {/* Authenticated Command Center Routes */}
         <Route element={<DashboardLayout />}>
           <Route path="/admin" element={<AdminDash />} />
           <Route path="/student" element={<StudentDash />} />
           <Route path="/panelist" element={<PanelistDash />} />
 
-          {/* Future Admin sub-routes */}
+          {/* Sub-views */}
           <Route
-            path="/admin/placements"
+            path="/admin/*"
             element={
-              <div className="text-text-secondary">Placements View Pending</div>
-            }
-          />
-          <Route
-            path="/admin/candidates"
-            element={
-              <div className="text-text-secondary">Candidates View Pending</div>
+              <div className="text-text-secondary p-8">
+                Sub-view Module Loading...
+              </div>
             }
           />
         </Route>
