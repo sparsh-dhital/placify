@@ -1,35 +1,41 @@
-export default function App() {
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import Login from "./pages/Login";
+import DashboardLayout from "./components/layout/DashboardLayout.tsx";
+import AdminDash from "./pages/AdminDash";
+import StudentDash from "./pages/StudentDash";
+import PanelistDash from "./pages/PanelistDash.tsx";
+
+function App() {
   return (
-    <main className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
-      <article
-        className="max-w-md w-full bg-white rounded-xl shadow-sm border border-slate-200 p-8"
-        aria-labelledby="status-heading"
-      >
-        <header className="mb-6">
-          <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-sm font-medium text-emerald-600 ring-1 ring-inset ring-emerald-600/20 mb-4">
-            System Online
-          </span>
-          <h1
-            id="status-heading"
-            className="text-2xl font-semibold text-slate-900 tracking-tight"
-          >
-            Tailwind is Working
-          </h1>
-        </header>
+    <BrowserRouter>
+      <Routes>
+        {/* Public Route */}
+        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="/login" element={<Login />} />
 
-        <p className="text-slate-600 leading-relaxed">
-          If you are seeing a centered white card with a subtle shadow, emerald
-          status badge, and clean typography, your Vite and Tailwind CSS
-          pipeline is successfully configured.
-        </p>
+        {/* Authenticated Dashboard Routes */}
+        <Route element={<DashboardLayout />}>
+          <Route path="/admin" element={<AdminDash />} />
+          <Route path="/student" element={<StudentDash />} />
+          <Route path="/panelist" element={<PanelistDash />} />
 
-        <button
-          type="button"
-          className="mt-6 w-full rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 transition-colors"
-        >
-          Begin Development
-        </button>
-      </article>
-    </main>
+          {/* Future Admin sub-routes */}
+          <Route
+            path="/admin/placements"
+            element={
+              <div className="text-text-secondary">Placements View Pending</div>
+            }
+          />
+          <Route
+            path="/admin/candidates"
+            element={
+              <div className="text-text-secondary">Candidates View Pending</div>
+            }
+          />
+        </Route>
+      </Routes>
+    </BrowserRouter>
   );
 }
+
+export default App;
