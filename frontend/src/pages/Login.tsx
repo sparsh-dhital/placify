@@ -1,13 +1,7 @@
 // src/pages/Login.tsx
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import {
-  Mail,
-  ArrowLeft,
-  ArrowRight,
-  ShieldCheck,
-  Sparkles,
-} from "lucide-react";
+import { Mail, ArrowLeft, ArrowRight, ShieldCheck } from "lucide-react";
 import { Logo } from "../components/ui/Logo";
 // @ts-expect-error -- ThemeToggle is a JS module without TypeScript declarations
 import ThemeToggle from "../components/ui/ThemeToggle";

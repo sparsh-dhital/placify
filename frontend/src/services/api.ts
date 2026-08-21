@@ -645,34 +645,6 @@ const extractTextFromPdf = async (file: File): Promise<string> => {
   return pages.join("\n");
 };
 
-const preprocessCanvasImage = (
-  canvas: HTMLCanvasElement,
-  invert: boolean = false,
-  threshold: number = 140,
-) => {
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return canvas;
-
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const data = imageData.data;
-
-  for (let i = 0; i < data.length; i += 4) {
-    let gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-    if (invert) gray = 255 - gray;
-    if (gray < threshold) gray = gray * 1.7;
-    else if (gray > threshold + 40) gray = 255;
-    else gray = gray * 1.12 + 16;
-
-    const finalValue = Math.max(0, Math.min(255, gray));
-    data[i] = finalValue;
-    data[i + 1] = finalValue;
-    data[i + 2] = finalValue;
-  }
-
-  ctx.putImageData(imageData, 0, 0);
-  return canvas;
-};
-
 const extractTextFromImage = async (file: File): Promise<string> => {
   const objectUrl = URL.createObjectURL(file);
   try {
