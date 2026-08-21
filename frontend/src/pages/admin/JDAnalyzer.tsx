@@ -7,24 +7,34 @@ import {
   Sparkles,
   Wand2,
 } from "lucide-react";
-import { analyzeJD, JDAnalysisResponse } from "../../services/api"; // Updated import path
+import { analyzeJD } from "../../services/api";
+import type { JDAnalysisResponse } from "../../services/api";
+import JobSelector from "../../components/ui/JobSelector";
+import { saveActiveJobId } from "../../utils/jobSelection";
 
 export default function JDAnalyzer() {
   const [jdText, setJdText] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState<JDAnalysisResponse | null>(null);
+  const [jobId, setJobId] = useState(
+    () => localStorage.getItem("placify_active_job_id") || "",
+  );
+  const [error, setError] = useState<string | null>(null);
 
   const handleAnalyze = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!jdText.trim()) return;
 
     setIsAnalyzing(true);
+    setError(null);
     try {
       // Toggle 'true' to 'false' when the backend is fully merged and running locally
-      const data = await analyzeJD(jdText, true);
+      const data = await analyzeJD(jdText);
       setResult(data);
+      if (jobId.trim()) saveActiveJobId(jobId);
     } catch (error) {
       console.error(error);
+      setError(error instanceof Error ? error.message : "JD analysis failed");
     } finally {
       setIsAnalyzing(false);
     }
@@ -43,6 +53,19 @@ export default function JDAnalyzer() {
           skills, and eligibility criteria.
         </p>
       </div>
+
+      <div className="max-w-sm rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-[#0A0A12]/80">
+        <JobSelector
+          value={jobId}
+          onChange={setJobId}
+          label="Job UUID for next agent step"
+        />
+      </div>
+      {error && (
+        <p className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300">
+          {error}
+        </p>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Left Column: Upload / Input */}
@@ -124,7 +147,7 @@ export default function JDAnalyzer() {
               <div className="flex justify-between items-start mb-6">
                 <div>
                   <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-                    {result.company}
+                    {result.company_name || result.company || "Analyzed role"}
                   </h2>
                   <p className="text-indigo-600 dark:text-indigo-400 font-medium">
                     {result.role}

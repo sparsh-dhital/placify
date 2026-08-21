@@ -9,7 +9,6 @@ import {
   Activity,
   CheckCircle2,
   Clock,
-  Calendar,
 } from "lucide-react";
 
 export default function AdminOverview() {

@@ -5,6 +5,7 @@ import { Logo } from "../components/ui/Logo";
 // @ts-expect-error -- ThemeToggle is a JS module without TypeScript declarations
 import ThemeToggle from "../components/ui/ThemeToggle";
 import { cn } from "../utils/cn";
+import { saveSession } from "../utils/session";
 
 type Role = "ADMIN" | "STUDENT" | "PANELIST";
 
@@ -15,6 +16,7 @@ export default function Login() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
+    saveSession(selectedRole, email);
     if (selectedRole === "ADMIN") navigate("/admin");
     if (selectedRole === "STUDENT") navigate("/student");
     if (selectedRole === "PANELIST") navigate("/panelist");

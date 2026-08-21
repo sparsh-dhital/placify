@@ -14,8 +14,9 @@ import {
 } from "lucide-react";
 import clsx from "clsx";
 import { Logo } from "../ui/Logo";
+import { getSession } from "../../utils/session";
 
-const navItems = [
+const adminNavItems = [
   { name: "Overview", path: "/admin", icon: LayoutDashboard },
   { name: "Placements", path: "/admin/placements", icon: Briefcase },
   { name: "Candidates", path: "/admin/candidates", icon: Users },
@@ -31,8 +32,26 @@ const navItems = [
   { name: "Analytics", path: "/admin/analytics", icon: BarChart3 },
 ];
 
+const studentNavItems = [
+  { name: "My Dashboard", path: "/student", icon: LayoutDashboard },
+  { name: "Resume Analyzer", path: "/student/resume", icon: FileText },
+  { name: "Opportunities", path: "/student/opportunities", icon: Briefcase },
+];
+
+const panelistNavItems = [
+  { name: "Today's Interviews", path: "/panelist", icon: Calendar },
+  { name: "Candidates", path: "/panelist/candidates", icon: Users },
+];
+
 export default function Sidebar() {
   const location = useLocation();
+  const role = getSession()?.role;
+  const navItems =
+    role === "STUDENT"
+      ? studentNavItems
+      : role === "PANELIST"
+        ? panelistNavItems
+        : adminNavItems;
 
   return (
     <aside

@@ -1,8 +1,16 @@
 import { Search, Bell, User } from "lucide-react";
 // @ts-expect-error -- ThemeToggle is a JS component without TS declarations
 import ThemeToggle from "../ui/ThemeToggle";
+import type { SessionUser } from "../../utils/session";
 
-export default function Topbar() {
+export default function Topbar({ session }: { session: SessionUser | null }) {
+  const roleLabel =
+    session?.role === "ADMIN"
+      ? "Placement Officer"
+      : session?.role === "PANELIST"
+        ? "Panelist"
+        : "Student";
+
   return (
     <header
       className="h-16 bg-white/80 dark:bg-[#0A0A12]/80 backdrop-blur-2xl border-b border-slate-200 dark:border-white/10 flex items-center justify-between px-8 flex-shrink-0 transition-colors"
@@ -31,7 +39,7 @@ export default function Topbar() {
             aria-hidden="true"
           ></span>
           <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
-            2026 Drive Active
+            {roleLabel} · 2026 Drive Active
           </span>
         </div>
 

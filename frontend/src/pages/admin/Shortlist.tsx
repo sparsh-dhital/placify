@@ -1,3 +1,5 @@
+import JobSelector from "../../components/ui/JobSelector";
+import { getActiveJobId, saveActiveJobId } from "../../utils/jobSelection";
 // src/pages/admin/Shortlist.tsx
 import { useState, useEffect } from "react";
 import {
@@ -8,30 +10,30 @@ import {
   Save,
   ShieldCheck,
 } from "lucide-react";
-import {
-  generateMatches,
-  submitShortlistApproval,
-  MatchResponse,
-  ShortlistDecision,
-} from "../../services/api";
+import { generateMatches, submitShortlistApproval } from "../../services/api";
+import type { MatchResponse, ShortlistDecision } from "../../services/api";
 
 export default function Shortlist() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [data, setData] = useState<MatchResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Track decisions: key is student_id, value is the decision object
   const [decisions, setDecisions] = useState<Record<string, ShortlistDecision>>(
     {},
   );
 
-  const activeJobId = "20000000-0000-0000-0000-000000000001";
+  const [activeJobId, setActiveJobId] = useState(() => getActiveJobId());
 
   // Fetch initial AI recommendations on mount
   useEffect(() => {
     const fetchRecommendations = async () => {
       try {
-        const result = await generateMatches(activeJobId, true);
+        if (!activeJobId.trim())
+          throw new Error("Select a job before reviewing the shortlist.");
+        saveActiveJobId(activeJobId);
+        const result = await generateMatches(activeJobId);
         setData(result);
 
         // Auto-approve candidates with a score > 75 to save time, others default to reject
@@ -46,13 +48,16 @@ export default function Shortlist() {
         setDecisions(initialDecisions);
       } catch (error) {
         console.error(error);
+        setError(
+          error instanceof Error ? error.message : "Could not load shortlist",
+        );
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchRecommendations();
-  }, []);
+  }, [activeJobId]);
 
   const handleToggleDecision = (
     studentId: string,
@@ -82,15 +87,19 @@ export default function Shortlist() {
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
+    setError(null);
     try {
       const payload = Object.values(decisions);
-      const result = await submitShortlistApproval(activeJobId, payload, true);
+      const result = await submitShortlistApproval(activeJobId, payload);
       alert(
         `Success! ${result.message}\nApproved: ${result.approved_count}\nRejected: ${result.rejected_count}`,
       );
       // In a real app, navigate to the Interview Scheduler next
     } catch (error) {
       console.error(error);
+      setError(
+        error instanceof Error ? error.message : "Could not save shortlist",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -113,6 +122,14 @@ export default function Shortlist() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="max-w-sm rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-[#0A0A12]/80">
+        <JobSelector value={activeJobId} onChange={setActiveJobId} />
+      </div>
+      {error && (
+        <p className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300">
+          {error}
+        </p>
+      )}
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>

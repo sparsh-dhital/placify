@@ -1,3 +1,5 @@
+import JobSelector from "../../components/ui/JobSelector";
+import { getActiveJobId, saveActiveJobId } from "../../utils/jobSelection";
 import { useState } from "react";
 import {
   CheckCircle2,
@@ -8,8 +10,8 @@ import {
   AlertCircle,
   ChevronRight,
 } from "lucide-react";
-import {
-  runEligibility,
+import { runEligibility } from "../../services/api";
+import type {
   EligibilityResponse,
   EligibilityResult,
 } from "../../services/api";
@@ -19,20 +21,24 @@ export default function Eligibility() {
   const [data, setData] = useState<EligibilityResponse | null>(null);
   const [selectedStudent, setSelectedStudent] =
     useState<EligibilityResult | null>(null);
-
-  // Hardcoded job ID for demonstration; in production, this would come from route params
-  const activeJobId = "20000000-0000-0000-0000-000000000001";
+  const [activeJobId, setActiveJobId] = useState(() => getActiveJobId());
+  const [error, setError] = useState<string | null>(null);
 
   const handleRunAgent = async () => {
     setIsProcessing(true);
     setData(null);
     setSelectedStudent(null);
+    setError(null);
     try {
+      if (!activeJobId.trim())
+        throw new Error("Select a job before running eligibility.");
+      saveActiveJobId(activeJobId);
       // Toggle 'true' to 'false' when testing with the live FastAPI backend
-      const result = await runEligibility(activeJobId, true);
+      const result = await runEligibility(activeJobId);
       setData(result);
     } catch (error) {
       console.error(error);
+      setError(error instanceof Error ? error.message : "Eligibility failed");
     } finally {
       setIsProcessing(false);
     }
@@ -69,6 +75,15 @@ export default function Eligibility() {
           {isProcessing ? "Agent Running..." : "Run Eligibility Check"}
         </button>
       </div>
+
+      <div className="max-w-sm rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-[#0A0A12]/80">
+        <JobSelector value={activeJobId} onChange={setActiveJobId} />
+      </div>
+      {error && (
+        <p className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300">
+          {error}
+        </p>
+      )}
 
       {/* Processing State */}
       {isProcessing && (

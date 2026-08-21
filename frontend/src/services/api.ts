@@ -1,11 +1,30 @@
 // src/services/api.ts
 
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(
+  /\/$/,
+  "",
+);
+
+async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
+  return fetch(`${API_BASE_URL}${path}`, init);
+}
+
+async function apiError(response: Response, fallback: string): Promise<Error> {
+  try {
+    const body = await response.json();
+    return new Error(body.detail || body.message || fallback);
+  } catch {
+    return new Error(fallback);
+  }
+}
+
 // ==========================================
 // 1. JD ANALYZER AGENT
 // ==========================================
 export interface JDAnalysisResponse {
   success: boolean;
-  company: string;
+  company?: string;
+  company_name?: string;
   role: string;
   min_cgpa: number;
   max_backlogs: number;
@@ -13,6 +32,7 @@ export interface JDAnalysisResponse {
   required_skills: string[];
   preferred_skills: string[];
   ai_confidence?: number;
+  raw_text?: string;
 }
 
 export const analyzeJD = async (
@@ -33,12 +53,12 @@ export const analyzeJD = async (
       ai_confidence: 92,
     };
   }
-  const response = await fetch("/api/admin/jd/analyze", {
+  const response = await apiFetch("/api/admin/jd/analyze", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text }),
   });
-  if (!response.ok) throw new Error("Failed to analyze JD");
+  if (!response.ok) throw await apiError(response, "Failed to analyze JD");
   return response.json();
 };
 
@@ -122,12 +142,12 @@ export const runEligibility = async (
       ],
     };
   }
-  const response = await fetch("/api/admin/eligibility/run", {
+  const response = await apiFetch("/api/admin/eligibility/run", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ job_id: jobId }),
   });
-  if (!response.ok) throw new Error("Failed to run eligibility");
+  if (!response.ok) throw await apiError(response, "Failed to run eligibility");
   return response.json();
 };
 
@@ -211,12 +231,13 @@ export const generateMatches = async (
       ],
     };
   }
-  const response = await fetch("/api/admin/matches/generate", {
+  const response = await apiFetch("/api/admin/matches/generate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ job_id: jobId }),
   });
-  if (!response.ok) throw new Error("Failed to generate matches");
+  if (!response.ok)
+    throw await apiError(response, "Failed to generate matches");
   return response.json();
 };
 
@@ -225,8 +246,10 @@ export const generateMatches = async (
 // ==========================================
 export interface ShortlistDecision {
   student_id: string;
-  action: "approve" | "reject";
+  action?: "approve" | "reject";
+  decision?: "approve" | "reject";
   override_reason?: string;
+  reason?: string;
 }
 
 export interface ShortlistSubmitResponse {
@@ -252,13 +275,31 @@ export const submitShortlistApproval = async (
       rejected_count: decisions.length - approved,
     };
   }
-  const response = await fetch("/api/admin/shortlist/approve", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ job_id: jobId, decisions }),
-  });
-  if (!response.ok) throw new Error("Failed to submit shortlist");
-  return response.json();
+  const results: ShortlistSubmitResponse[] = [];
+  for (const decision of decisions) {
+    const response = await apiFetch("/api/admin/shortlist/approve", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        application_id: decision.student_id,
+        decision: decision.decision || decision.action,
+        reason: decision.reason || decision.override_reason || "",
+        job_id: jobId,
+      }),
+    });
+    if (!response.ok)
+      throw await apiError(response, "Failed to submit shortlist");
+    results.push(await response.json());
+  }
+  const approved = decisions.filter(
+    (decision) => (decision.decision || decision.action) === "approve",
+  ).length;
+  return {
+    success: results.every((result) => result.success !== false),
+    message: "Shortlist decisions saved successfully.",
+    approved_count: approved,
+    rejected_count: decisions.length - approved,
+  };
 };
 
 // ==========================================
@@ -266,9 +307,11 @@ export const submitShortlistApproval = async (
 // ==========================================
 export interface ScheduleItem {
   id: string;
-  student: string;
-  panel: string;
-  room: string;
+  student?: string;
+  student_id?: string;
+  panel?: string;
+  panel_id?: string;
+  room?: string;
   start_time: string;
   end_time: string;
   status: "proposed" | "confirmed" | "conflict";
@@ -287,6 +330,8 @@ export interface ScheduleResponse {
   schedule: ScheduleItem[];
   conflict_detected: boolean;
   conflict_details?: ConflictDetails;
+  conflicts?: ConflictDetails[];
+  unscheduled_candidates?: string[];
 }
 
 export const generateSchedule = async (
@@ -336,12 +381,62 @@ export const generateSchedule = async (
       ],
     };
   }
-  const response = await fetch("/api/admin/schedule/generate", {
+  const response = await apiFetch("/api/admin/schedule/generate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ job_id: jobId }),
   });
-  if (!response.ok) throw new Error("Failed to generate schedule");
+  if (!response.ok)
+    throw await apiError(response, "Failed to generate schedule");
+  const result = await response.json();
+  return {
+    ...result,
+    conflict_detected:
+      result.conflict_detected ?? Boolean(result.conflicts?.length),
+    conflict_details: result.conflict_details || result.conflicts?.[0],
+    schedule: (result.schedule || []).map((item: ScheduleItem) => ({
+      ...item,
+      start_time:
+        item.start_time?.length > 5
+          ? item.start_time.slice(11, 16)
+          : item.start_time,
+      end_time:
+        item.end_time?.length > 5 ? item.end_time.slice(11, 16) : item.end_time,
+    })),
+  };
+};
+
+export interface DelayRecoveryResponse {
+  success: boolean;
+  proposed_changes: Array<Record<string, unknown>>;
+  affected_interviews?: Array<Record<string, unknown>>;
+  message?: string;
+}
+
+export const simulateDelay = async (
+  roomId: string,
+  delayMinutes: number,
+): Promise<DelayRecoveryResponse> => {
+  const response = await apiFetch("/api/admin/simulate-delay", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ room_id: roomId, delay_minutes: delayMinutes }),
+  });
+  if (!response.ok)
+    throw await apiError(response, "Failed to simulate room delay");
+  return response.json();
+};
+
+export const approveDelayRecovery = async (
+  proposedChanges: Array<Record<string, unknown>>,
+): Promise<Record<string, unknown>> => {
+  const response = await apiFetch("/api/admin/simulate-delay/approve", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ proposed_changes: proposedChanges }),
+  });
+  if (!response.ok)
+    throw await apiError(response, "Failed to approve recovery plan");
   return response.json();
 };
 
@@ -354,6 +449,11 @@ export interface StudentProfile {
   branch: string;
   cgpa: number;
   readiness_score: number;
+  id?: string;
+  backlogs?: number;
+  graduation_year?: number | null;
+  skills?: string[];
+  projects?: string[];
 }
 
 export interface UpcomingInterview {
@@ -372,6 +472,11 @@ export interface JobMatch {
   match_score: number;
   matched_skills: string[];
   missing_skills: string[];
+  explanation?: string;
+  min_cgpa?: number;
+  max_backlogs?: number;
+  required_skills?: string[];
+  preferred_skills?: string[];
 }
 
 export interface StudentDashboardResponse {
@@ -430,10 +535,12 @@ export const getStudentDashboard = async (
       ],
     };
   }
-  const response = await fetch(
+  const response = await apiFetch(
     `/api/student/dashboard?student_id=${studentId}`,
   );
-  if (!response.ok) throw new Error("Failed to fetch student dashboard");
+  if (!response.ok) {
+    throw await apiError(response, "Failed to fetch student dashboard");
+  }
   return response.json();
 };
 
@@ -522,8 +629,9 @@ export const getPanelInterviews = async (
       ],
     };
   }
-  const response = await fetch(`/api/panel/today?panelist_id=${panelistId}`);
-  if (!response.ok) throw new Error("Failed to fetch panel schedule");
+  const response = await apiFetch(`/api/panel/today?panelist_id=${panelistId}`);
+  if (!response.ok)
+    throw await apiError(response, "Failed to fetch panel schedule");
   return response.json();
 };
 
@@ -535,11 +643,35 @@ export const submitInterviewFeedback = async (
     await new Promise((resolve) => setTimeout(resolve, 1000));
     return { success: true, message: "Feedback submitted successfully." };
   }
-  const response = await fetch("/api/panel/feedback", {
+  const response = await apiFetch("/api/panel/feedback", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
-  if (!response.ok) throw new Error("Failed to submit feedback");
+  if (!response.ok) throw await apiError(response, "Failed to submit feedback");
+  return response.json();
+};
+
+export interface ResumeUploadResponse {
+  success: boolean;
+  student_id: string;
+  resume_id: string;
+  profile: StudentProfile;
+  resume_text: string;
+  skills_saved: number;
+}
+
+export const uploadResume = async (
+  studentId: string,
+  file: File,
+): Promise<ResumeUploadResponse> => {
+  const body = new FormData();
+  body.append("student_id", studentId);
+  body.append("file", file);
+  const response = await apiFetch("/api/student/upload-resume", {
+    method: "POST",
+    body,
+  });
+  if (!response.ok) throw await apiError(response, "Failed to upload resume");
   return response.json();
 };

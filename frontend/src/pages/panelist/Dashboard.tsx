@@ -9,20 +9,25 @@ import {
   MessageSquare,
   Send,
   Star,
-  ChevronRight,
+  Calendar,
   Briefcase,
 } from "lucide-react";
 import {
   getPanelInterviews,
   submitInterviewFeedback,
+} from "../../services/api";
+import type {
   PanelDashboardResponse,
   PanelInterview,
 } from "../../services/api";
+import { getSession } from "../../utils/session";
+import { useCallback } from "react";
 
 export default function PanelistDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [data, setData] = useState<PanelDashboardResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [selectedInterview, setSelectedInterview] =
     useState<PanelInterview | null>(null);
 
@@ -33,22 +38,25 @@ export default function PanelistDashboard() {
   const [result, setResult] = useState<"pass" | "fail" | "hold" | "">("");
   const [comments, setComments] = useState("");
 
-  // Hardcoded panelist ID for demonstration
-  const activePanelistId = "p1";
+  const fetchDashboard = useCallback(async () => {
+    const activePanelistId = getSession()?.userId || "p1";
+    setError(null);
+    try {
+      const result = await getPanelInterviews(activePanelistId);
+      setData(result);
+    } catch (requestError) {
+      console.error(requestError);
+      setError(
+        "Unable to load the panel schedule. Start the FastAPI server and verify your panelist record.",
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const fetchDashboard = async () => {
-      try {
-        const result = await getPanelInterviews(activePanelistId, true);
-        setData(result);
-      } catch (error) {
-        console.error(error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
     fetchDashboard();
-  }, []);
+  }, [fetchDashboard]);
 
   const handleSelectInterview = (interview: PanelInterview) => {
     setSelectedInterview(interview);
@@ -75,7 +83,7 @@ export default function PanelistDashboard() {
         comments,
       };
 
-      const res = await submitInterviewFeedback(payload, true);
+      const res = await submitInterviewFeedback(payload);
       alert(res.message);
 
       // Update local state to mark as completed
@@ -140,6 +148,26 @@ export default function PanelistDashboard() {
         <p className="text-slate-500 dark:text-slate-400 font-medium">
           Loading today's schedule...
         </p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-xl mx-auto mt-16 rounded-2xl border border-red-200 bg-red-50 p-8 text-center dark:border-red-500/20 dark:bg-red-500/10">
+        <h1 className="text-lg font-bold text-red-800 dark:text-red-300">
+          Schedule unavailable
+        </h1>
+        <p className="mt-2 text-sm text-red-700 dark:text-red-200">{error}</p>
+        <button
+          onClick={() => {
+            setIsLoading(true);
+            fetchDashboard();
+          }}
+          className="mt-5 rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500"
+        >
+          Retry
+        </button>
       </div>
     );
   }

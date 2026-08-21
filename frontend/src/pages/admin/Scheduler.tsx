@@ -1,3 +1,5 @@
+import JobSelector from "../../components/ui/JobSelector";
+import { getActiveJobId, saveActiveJobId } from "../../utils/jobSelection";
 // src/pages/admin/Scheduler.tsx
 import { useState } from "react";
 import {
@@ -10,25 +12,31 @@ import {
   MapPin,
   UsersRound,
 } from "lucide-react";
-import { generateSchedule, ScheduleResponse } from "../../services/api";
+import { generateSchedule } from "../../services/api";
+import type { ScheduleResponse } from "../../services/api";
 
 export default function Scheduler() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [data, setData] = useState<ScheduleResponse | null>(null);
   const [conflictResolved, setConflictResolved] = useState(false);
-
-  const activeJobId = "20000000-0000-0000-0000-000000000001";
+  const [activeJobId, setActiveJobId] = useState(() => getActiveJobId());
+  const [error, setError] = useState<string | null>(null);
 
   const handleGenerate = async () => {
     setIsProcessing(true);
     setData(null);
     setConflictResolved(false);
+    setError(null);
     try {
+      if (!activeJobId.trim())
+        throw new Error("Select a job before generating a schedule.");
+      saveActiveJobId(activeJobId);
       // Toggle 'true' to 'false' when backend API is live
-      const result = await generateSchedule(activeJobId, true);
+      const result = await generateSchedule(activeJobId);
       setData(result);
     } catch (error) {
       console.error(error);
+      setError(error instanceof Error ? error.message : "Scheduling failed");
     } finally {
       setIsProcessing(false);
     }
@@ -67,6 +75,15 @@ export default function Scheduler() {
           {isProcessing ? "Allocating Resources..." : "Generate AI Schedule"}
         </button>
       </div>
+
+      <div className="max-w-sm rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-[#0A0A12]/80">
+        <JobSelector value={activeJobId} onChange={setActiveJobId} />
+      </div>
+      {error && (
+        <p className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300">
+          {error}
+        </p>
+      )}
 
       {/* Processing State */}
       {isProcessing && (

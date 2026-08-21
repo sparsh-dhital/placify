@@ -1,12 +1,5 @@
 // src/pages/admin/Activity.tsx
-import {
-  Bot,
-  User,
-  CheckCircle2,
-  AlertTriangle,
-  ShieldCheck,
-  Clock,
-} from "lucide-react";
+import { Bot, User, AlertTriangle, ShieldCheck, Clock } from "lucide-react";
 
 interface AuditLog {
   id: string;
