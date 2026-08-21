@@ -1,33 +1,60 @@
-campus-placement-agent/
+campus-ai-placement/
+├── frontend/                     # React + Vite + Tailwind CSS Application
+│   ├── public/
+│   │   └── favicon.ico
+│   ├── src/
+│   │   ├── assets/
+│   │   ├── components/
+│   │   │   ├── ui/               # shadcn/ui primitives (Semantic HTML5 & WAI-ARIA compliant)
+│   │   │   ├── Navbar.tsx
+│   │   │   └── Sidebar.tsx
+│   │   ├── context/              # Global state (Auth, User Role)
+│   │   │   └── AuthContext.tsx
+│   │   ├── lib/                  # Required for shadcn/ui helpers
+│   │   │   └── utils.ts
+│   │   ├── pages/
+│   │   │   ├── student/
+│   │   │   ├── admin/
+│   │   │   └── panelist/
+│   │   ├── services/
+│   │   │   └── api.ts            # Axios/Fetch wrappers pointing to FastAPI
+│   │   ├── types/
+│   │   │   └── index.ts
+│   │   ├── App.tsx
+│   │   ├── main.tsx
+│   │   └── index.css
+│   ├── .env
+│   ├── index.html
+│   ├── package.json
+│   ├── postcss.config.js         
+│   ├── tailwind.config.js
+│   ├── tsconfig.json             
+│   └── vite.config.ts
 │
-├── [ CLIENT LAYER ] 
-│   └── Placement Dashboard (React + Vite + Tailwind CSS)
-│       ├── Job Description Upload & Requirements Viewer
-│       ├── Candidate Ranking & AI Explanation Cards
-│       └── Human-in-the-Loop Approval Modal
+├── backend/                      # Python FastAPI Application
+│   ├── app/
+│   │   ├── agent/                # 👈 ADJUSTED: Single Agent Core (Pattern A)
+│   │   │   ├── orchestrator.py   # Main LLM Reasoning Loop
+│   │   │   └── tools/            # Deterministic code wrappers for the agent
+│   │   │       ├── parser.py     
+│   │   │       ├── matcher.py    
+│   │   │       └── scheduler.py  
+│   │   ├── api/                  # API Endpoint Routes
+│   │   │   ├── admin.py
+│   │   │   ├── student.py
+│   │   │   └── panelist.py
+│   │   ├── core/                 # DB Connection & Config
+│   │   │   ├── config.py
+│   │   │   └── database.py
+│   │   ├── models/               # Pydantic Schemas & DB Entities
+│   │   │   ├── db_models.py
+│   │   │   └── schemas.py
+│   │   ├── uploads/              # Temp folder for uploaded PDFs
+│   │   └── utils/                # Helper scripts 
+│   │       └── pdf_extractor.py
+│   ├── .env
+│   ├── campus_placement.db       # 👈 NOTED: SQLite Local DB
+│   ├── main.py                   # FastAPI Entry Point
+│   └── requirements.txt
 │
-├── [ BACKEND API GATEWAY ] (Python / FastAPI)
-│   ├── main.py                 -> FastAPI application entry point
-│   ├── routers/
-│   │   ├── jobs.py             -> POST /api/jobs
-│   │   ├── candidates.py       -> GET /api/candidates
-│   │   └── agent.py            -> POST /api/match (Invokes AI)
-│   │
-│   ├── models/                 -> Pydantic Schemas (Data validation)
-│   │   ├── student.py          -> Validates academic records & CGPA
-│   │   └── job.py              -> Validates extracted JD parameters
-│   │
-│   └── database.py             -> MongoDB connection (Motor/PyMongo)
-│
-├── [ AGENT CORE ] (Python Functions)
-│   ├── orchestrator.py         -> LLM Reasoning Loop (Plan -> Select Tool)
-│   │
-│   └── tools.py                -> Deterministic Code Wrappers
-│       ├── query_mongo_candidates()    -> Tool 1: DB search
-│       ├── calculate_match()           -> Tool 2: Skill gap math
-│       └── draft_notification()        -> Tool 3: Format outputs
-│
-└── [ PERSISTENCE LAYER ] (MongoDB)
-    ├── jobs_collection         
-    ├── students_collection     
-    └── placements_collection
+└── README.md
