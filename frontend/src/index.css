@@ -3,19 +3,28 @@
 @tailwind utilities;
 
 @layer base {
-  html, body {
-    @apply bg-background text-text-primary antialiased font-sans h-full w-full m-0 p-0;
+  html {
+    /* REMOVED: scroll-behavior: smooth; so Lenis can take over! */
+    scroll-padding-top: 2rem;
   }
 
-  /* Custom scrollbar for a premium feel */
+  /* Changed from h-full to min-h-screen to fix background cutoff */
+  body {
+    @apply min-h-screen bg-[#FAFAFA] text-slate-900 dark:bg-background dark:text-text-primary antialiased font-sans m-0 p-0 transition-colors duration-500 ease-in-out;
+    cursor: none;
+  }
+
+  a, button, input, select, textarea {
+    cursor: none;
+  }
+
   ::-webkit-scrollbar {
     width: 6px;
-    height: 6px;
   }
   ::-webkit-scrollbar-track {
-    @apply bg-background;
+    @apply bg-transparent;
   }
   ::-webkit-scrollbar-thumb {
-    @apply bg-border rounded-full hover:bg-text-secondary transition-colors;
+    @apply rounded-full bg-slate-300 dark:bg-border hover:bg-slate-400 dark:hover:bg-text-secondary transition-colors;
   }
 }
