@@ -1,0 +1,12 @@
+langgraph
+langchain-openai
+openai
+streamlit
+pydantic
+python-dotenv
+langchain-groq
+pypdf
+python-docx
+pymupdf
+pytesseract
+pillow
