@@ -1,3 +1,21 @@
+def normalize_skill(skill):
+    """
+    Normalize skill names so equivalent skills match.
+    """
+
+    skill = skill.strip().lower()
+
+    aliases = {
+        "postgresql": "sql",
+        "mysql": "sql",
+        "mssql": "sql",
+        "node": "node.js",
+        "nodejs": "node.js",
+    }
+
+    return aliases.get(skill, skill)
+
+
 def calculate_match(student_skills, job_skills):
     """
     Deterministic Matchmaker Agent.
@@ -7,18 +25,18 @@ def calculate_match(student_skills, job_skills):
     """
 
     student_skill_names = {
-        skill["skill_name"].strip().lower()
+        normalize_skill(skill["skill_name"])
         for skill in student_skills
     }
 
     mandatory_skills = {
-        skill["skill_name"].strip().lower()
+        normalize_skill(skill["skill_name"])
         for skill in job_skills
         if skill["skill_type"] == "mandatory"
     }
 
     preferred_skills = {
-        skill["skill_name"].strip().lower()
+        normalize_skill(skill["skill_name"])
         for skill in job_skills
         if skill["skill_type"] == "preferred"
     }
@@ -33,7 +51,6 @@ def calculate_match(student_skills, job_skills):
         all_job_skills - student_skill_names
     )
 
-    # Mandatory skills are more important
     mandatory_matched = student_skill_names & mandatory_skills
     preferred_matched = student_skill_names & preferred_skills
 
@@ -61,19 +78,17 @@ def calculate_match(student_skills, job_skills):
     else:
         confidence = "low"
 
-    if matched_skills:
-        matched_text = ", ".join(
-            skill.title() for skill in matched_skills
-        )
-    else:
-        matched_text = "none"
+    matched_text = (
+        ", ".join(skill.title() for skill in matched_skills)
+        if matched_skills
+        else "none"
+    )
 
-    if missing_skills:
-        missing_text = ", ".join(
-            skill.title() for skill in missing_skills
-        )
-    else:
-        missing_text = "none"
+    missing_text = (
+        ", ".join(skill.title() for skill in missing_skills)
+        if missing_skills
+        else "none"
+    )
 
     explanation = (
         f"Candidate matches {len(matched_skills)} "
