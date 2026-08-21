@@ -1,7 +1,8 @@
+// src/components/layout/DashboardLayout.tsx
 import { Outlet } from "react-router-dom";
-import { Bot } from "lucide-react";
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
+import AIAssistant from "../ui/AIAssistant"; // Import the interactive chat window component
 
 export default function DashboardLayout() {
   return (
@@ -21,16 +22,8 @@ export default function DashboardLayout() {
         </main>
       </div>
 
-      {/* Global Floating AI Assistant Button */}
-      <button
-        className="fixed bottom-6 right-6 p-3.5 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white shadow-xl shadow-indigo-600/30 hover:scale-105 active:scale-95 transition-all duration-200 z-50 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#05050A] focus:ring-indigo-500 group"
-        aria-label="Open Placement AI Assistant"
-      >
-        <Bot className="w-5 h-5" aria-hidden="true" />
-        <span className="max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-300 ease-in-out whitespace-nowrap opacity-0 group-hover:opacity-100 group-hover:ml-2 text-sm font-medium">
-          Ask Placify AI
-        </span>
-      </button>
+      {/* Replaced the static button with our fully functional Floating AI Assistant component */}
+      <AIAssistant />
     </div>
   );
 }
