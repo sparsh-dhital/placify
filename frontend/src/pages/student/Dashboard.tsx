@@ -13,10 +13,7 @@ import {
   Sparkles,
   AlertCircle,
 } from "lucide-react";
-import {
-  getStudentDashboard,
-  parseStudentResume,
-} from "../../services/api";
+import { getStudentDashboard, parseStudentResume } from "../../services/api";
 import type {
   ResumeMatchResult,
   StudentDashboardResponse,
@@ -26,7 +23,9 @@ import { AICritic } from "../../components/ui/AICritic"; // <-- AI Critic Import
 export default function StudentDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [data, setData] = useState<StudentDashboardResponse | null>(null);
-  const [resumeResult, setResumeResult] = useState<ResumeMatchResult | null>(null);
+  const [resumeResult, setResumeResult] = useState<ResumeMatchResult | null>(
+    null,
+  );
   const [isParsing, setIsParsing] = useState(false);
   const [selectedFileName, setSelectedFileName] = useState<string>("");
   const [parseError, setParseError] = useState<string>("");
@@ -54,7 +53,11 @@ export default function StudentDashboard() {
     } catch (error) {
       console.error("Resume parsing failed:", error);
       setResumeResult(null);
-      setParseError(error instanceof Error ? error.message : "Unable to parse this file. Try a clearer PDF or image.");
+      setParseError(
+        error instanceof Error
+          ? error.message
+          : "Unable to parse this file. Try a clearer PDF or image.",
+      );
     } finally {
       setIsParsing(false);
     }
@@ -88,7 +91,10 @@ export default function StudentDashboard() {
   if (!data) return null;
 
   return (
-    <main className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500" aria-label="Student Placement Dashboard">
+    <main
+      className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500"
+      aria-label="Student Placement Dashboard"
+    >
       {/* Header & Readiness Score */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="flex items-center gap-4">
@@ -103,7 +109,8 @@ export default function StudentDashboard() {
               Welcome, {displayedProfile?.name || data.profile.name} 👋
             </h1>
             <p className="text-slate-600 dark:text-slate-400 mt-1 text-sm font-medium">
-              {displayedProfile?.education[0] || data.profile.branch} • Email: {displayedProfile?.email || "Not uploaded"} • CGPA:{" "}
+              {displayedProfile?.education[0] || data.profile.branch} • Email:{" "}
+              {displayedProfile?.email || "Not uploaded"} • CGPA:{" "}
               {displayedProfile?.cgpa ?? data.profile.cgpa}
             </p>
           </div>
@@ -302,7 +309,7 @@ export default function StudentDashboard() {
               ))}
             </div>
 
-              <div className="mt-6 pt-6 border-t border-slate-200 dark:border-white/10">
+            <div className="mt-6 pt-6 border-t border-slate-200 dark:border-white/10">
               <div className="flex items-start gap-3 p-4 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20">
                 <AlertCircle className="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
                 <div className="w-full">
@@ -310,7 +317,8 @@ export default function StudentDashboard() {
                     Resume Eligibility Check
                   </h4>
                   <p className="text-xs text-indigo-700 dark:text-indigo-400 mt-1">
-                    Upload your latest resume to parse skills, check matching requirements, and compute eligibility score.
+                    Upload your latest resume to parse skills, check matching
+                    requirements, and compute eligibility score.
                   </p>
 
                   <label className="mt-3 flex cursor-pointer items-center justify-center rounded-xl border border-dashed border-indigo-300 bg-white px-3 py-3 text-sm font-semibold text-indigo-700 transition hover:border-indigo-400 hover:bg-indigo-50 dark:bg-[#0A0A12] dark:text-indigo-300">
@@ -329,7 +337,10 @@ export default function StudentDashboard() {
                     </p>
                   )}
                   {parseError && (
-                    <p className="mt-2 text-xs font-medium text-red-600 dark:text-red-400" role="alert">
+                    <p
+                      className="mt-2 text-xs font-medium text-red-600 dark:text-red-400"
+                      role="alert"
+                    >
                       {parseError}
                     </p>
                   )}
@@ -368,12 +379,17 @@ export default function StudentDashboard() {
                       <div className="mt-2 flex flex-wrap gap-2">
                         {resumeResult.matched_skills.length ? (
                           resumeResult.matched_skills.map((skill) => (
-                            <span key={skill} className="rounded-full bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
+                            <span
+                              key={skill}
+                              className="rounded-full bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300"
+                            >
                               {skill}
                             </span>
                           ))
                         ) : (
-                          <span className="text-xs text-slate-500 dark:text-slate-400">No direct matches found</span>
+                          <span className="text-xs text-slate-500 dark:text-slate-400">
+                            No direct matches found
+                          </span>
                         )}
                       </div>
                     </div>
@@ -385,12 +401,17 @@ export default function StudentDashboard() {
                       <div className="mt-2 flex flex-wrap gap-2">
                         {resumeResult.missing_skills.length ? (
                           resumeResult.missing_skills.map((skill) => (
-                            <span key={skill} className="rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-700 dark:bg-red-500/10 dark:text-red-300">
+                            <span
+                              key={skill}
+                              className="rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-700 dark:bg-red-500/10 dark:text-red-300"
+                            >
                               {skill}
                             </span>
                           ))
                         ) : (
-                          <span className="text-xs text-slate-500 dark:text-slate-400">No critical gaps</span>
+                          <span className="text-xs text-slate-500 dark:text-slate-400">
+                            No critical gaps
+                          </span>
                         )}
                       </div>
                     </div>
@@ -401,11 +422,27 @@ export default function StudentDashboard() {
                       Extracted Candidate Info
                     </p>
                     <div className="mt-2 grid gap-2 text-sm text-slate-700 dark:text-slate-300">
-                      <p><span className="font-semibold">Name:</span> {resumeResult.parsed.name}</p>
-                      <p><span className="font-semibold">Email:</span> {resumeResult.parsed.email}</p>
-                      <p><span className="font-semibold">Phone:</span> {resumeResult.parsed.phone}</p>
-                      <p><span className="font-semibold">CGPA:</span> {resumeResult.parsed.cgpa ?? "N/A"}</p>
-                      <p><span className="font-semibold">Skills:</span> {resumeResult.parsed.skills.join(", ") || "No skills detected"}</p>
+                      <p>
+                        <span className="font-semibold">Name:</span>{" "}
+                        {resumeResult.parsed.name}
+                      </p>
+                      <p>
+                        <span className="font-semibold">Email:</span>{" "}
+                        {resumeResult.parsed.email}
+                      </p>
+                      <p>
+                        <span className="font-semibold">Phone:</span>{" "}
+                        {resumeResult.parsed.phone}
+                      </p>
+                      <p>
+                        <span className="font-semibold">CGPA:</span>{" "}
+                        {resumeResult.parsed.cgpa ?? "N/A"}
+                      </p>
+                      <p>
+                        <span className="font-semibold">Skills:</span>{" "}
+                        {resumeResult.parsed.skills.join(", ") ||
+                          "No skills detected"}
+                      </p>
                     </div>
                   </div>
 
