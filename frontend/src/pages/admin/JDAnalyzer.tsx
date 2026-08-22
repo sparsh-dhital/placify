@@ -7,25 +7,44 @@ import {
   Sparkles,
   Wand2,
 } from "lucide-react";
-import { analyzeJD } from "../../services/api";
+import { analyzeJD, analyzeJDFile } from "../../services/api";
 import type { JDAnalysisResponse } from "../../services/api";
 
 export default function JDAnalyzer() {
   const [jdText, setJdText] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState<JDAnalysisResponse | null>(null);
+  const [selectedFileName, setSelectedFileName] = useState("");
+  const [error, setError] = useState("");
 
   const handleAnalyze = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!jdText.trim()) return;
 
     setIsAnalyzing(true);
+    setError("");
     try {
-      // Toggle 'true' to 'false' when the backend is fully merged and running locally
-      const data = await analyzeJD(jdText, true);
+      const data = await analyzeJD(jdText);
       setResult(data);
     } catch (error) {
       console.error(error);
+      setError(error instanceof Error ? error.message : "Unable to analyze the job description.");
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setSelectedFileName(file.name);
+    setError("");
+    setIsAnalyzing(true);
+    try {
+      setResult(await analyzeJDFile(file));
+    } catch (fileError) {
+      console.error(fileError);
+      setError(fileError instanceof Error ? fileError.message : "Unable to read this file.");
     } finally {
       setIsAnalyzing(false);
     }
@@ -50,7 +69,7 @@ export default function JDAnalyzer() {
         <div className="bg-white dark:bg-[#0A0A12]/80 backdrop-blur-2xl border border-slate-200 dark:border-white/10 rounded-[2rem] p-6 sm:p-8 shadow-xl shadow-slate-900/5">
           <form onSubmit={handleAnalyze} className="flex flex-col h-full">
             {/* Drag & Drop Area */}
-            <div className="border-2 border-dashed border-slate-300 dark:border-white/20 rounded-2xl p-8 flex flex-col items-center justify-center text-center bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors cursor-none mb-6">
+            <label className="border-2 border-dashed border-slate-300 dark:border-white/20 rounded-2xl p-8 flex flex-col items-center justify-center text-center bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors cursor-pointer mb-6">
               <UploadCloud className="w-10 h-10 text-indigo-500 mb-4" />
               <p className="text-sm font-semibold text-slate-900 dark:text-white">
                 Drag & Drop JD PDF
@@ -58,7 +77,9 @@ export default function JDAnalyzer() {
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                 or click to browse files
               </p>
-            </div>
+              <input type="file" accept=".pdf,.txt,.md,.csv,application/pdf,text/plain" className="hidden" onChange={handleFileChange} disabled={isAnalyzing} />
+              {selectedFileName && <p className="mt-3 text-xs font-medium text-indigo-600 dark:text-indigo-300">Selected: {selectedFileName}</p>}
+            </label>
 
             <div className="flex items-center gap-4 mb-6">
               <div className="flex-1 h-px bg-slate-200 dark:bg-white/10"></div>
@@ -94,6 +115,7 @@ export default function JDAnalyzer() {
                 </>
               )}
             </button>
+            {error && <p className="mt-3 text-sm font-medium text-red-600 dark:text-red-400" role="alert">{error}</p>}
           </form>
         </div>
 
