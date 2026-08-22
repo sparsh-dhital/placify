@@ -1,7 +1,7 @@
 // src/services/api.ts
 
 // ==========================================
-// 0. AUTHENTICATION & AI CRITIC (MongoDB)
+// 0. AUTHENTICATION & AI ASSISTANT (MongoDB)
 // ==========================================
 export const API_URL = "http://localhost:8000/api";
 
@@ -19,25 +19,53 @@ export async function loginUser(credentials: {
   return response.json();
 }
 
-export async function requestOtpLogin(email: string) {
-  const response = await fetch(`${API_URL}/auth/request-otp`, {
+export async function requestSignupOtp(email: string) {
+  const response = await fetch(`${API_URL}/auth/signup/request-otp`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email }),
   });
   if (!response.ok)
-    throw new Error((await response.json()).detail || "Failed to request OTP");
+    throw new Error((await response.json()).detail || "Failed to send code");
   return response.json();
 }
 
-export async function verifyOtpLogin(email: string, otp: string) {
-  const response = await fetch(`${API_URL}/auth/verify-otp`, {
+export async function verifySignupOtp(data: any) {
+  const response = await fetch(`${API_URL}/auth/signup/verify`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, otp }),
+    body: JSON.stringify(data),
   });
   if (!response.ok)
-    throw new Error((await response.json()).detail || "Invalid or expired OTP");
+    throw new Error(
+      (await response.json()).detail || "Failed to create account",
+    );
+  return response.json();
+}
+
+export async function requestPasswordResetOtp(email: string) {
+  const response = await fetch(`${API_URL}/auth/forgot-password/request-otp`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  if (!response.ok)
+    throw new Error(
+      (await response.json()).detail || "Failed to send reset code",
+    );
+  return response.json();
+}
+
+export async function resetPassword(data: any) {
+  const response = await fetch(`${API_URL}/auth/forgot-password/reset`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok)
+    throw new Error(
+      (await response.json()).detail || "Failed to reset password",
+    );
   return response.json();
 }
 

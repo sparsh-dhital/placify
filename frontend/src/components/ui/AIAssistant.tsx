@@ -16,10 +16,12 @@ import {
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
 import {
   sendChatMessage,
   getChatHistory,
   deleteChatMessage,
+  clearChatHistory,
 } from "../../services/api";
 
 interface Message {
@@ -358,7 +360,10 @@ export default function AIAssistant() {
                   New Chat
                 </button>
 
-                <div className="flex-1 overflow-y-auto pr-1 space-y-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-indigo-500/30 [&::-webkit-scrollbar-thumb]:rounded-full">
+                <div
+                  data-lenis-prevent="true"
+                  className="flex-1 overflow-y-auto pr-1 space-y-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-indigo-500/30 hover:[&::-webkit-scrollbar-thumb]:bg-indigo-500/50 [&::-webkit-scrollbar-thumb]:rounded-full"
+                >
                   <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3 px-1 mt-2">
                     Your Conversations
                   </h4>
@@ -394,8 +399,9 @@ export default function AIAssistant() {
 
             {/* Right Chat Column - STRICT STANDARD FLEX COLUMN */}
             <div className="flex-1 flex flex-col min-w-0 min-h-0 h-full overflow-hidden">
-              {/* Messages Scroll Area - No more absolute positioning */}
+              {/* Messages Scroll Area - WITH rehypeRaw FIX */}
               <section
+                data-lenis-prevent="true"
                 className={`flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 scroll-smooth overscroll-contain [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full ${isDarkTheme ? "[&::-webkit-scrollbar-thumb]:bg-slate-700/50 hover:[&::-webkit-scrollbar-thumb]:bg-slate-600" : "[&::-webkit-scrollbar-thumb]:bg-slate-300 hover:[&::-webkit-scrollbar-thumb]:bg-slate-400"}`}
                 role="log"
                 aria-live="polite"
@@ -404,11 +410,6 @@ export default function AIAssistant() {
               >
                 {activeMessages.map((msg) => {
                   const isAI = msg.role === "assistant";
-                  // Pre-process message to replace raw HTML <br> tags with markdown newlines
-                  const processedContent = msg.content.replace(
-                    /<br\s*\/?>/gi,
-                    "\n",
-                  );
 
                   return (
                     <div
@@ -442,6 +443,7 @@ export default function AIAssistant() {
                           {isAI ? (
                             <ReactMarkdown
                               remarkPlugins={[remarkGfm]}
+                              rehypePlugins={[rehypeRaw]}
                               components={{
                                 // Custom Tailwind rendering for beautifully themed markdown tables
                                 table: ({ node, ...props }) => (
@@ -509,12 +511,10 @@ export default function AIAssistant() {
                                 ),
                               }}
                             >
-                              {processedContent}
+                              {msg.content}
                             </ReactMarkdown>
                           ) : (
-                            <p className="whitespace-pre-line">
-                              {processedContent}
-                            </p>
+                            <p className="whitespace-pre-line">{msg.content}</p>
                           )}
                         </div>
                       </div>
