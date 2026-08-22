@@ -15,8 +15,15 @@ resend.api_key = os.getenv("RESEND_API_KEY")
 # Import database and routers
 from database import db
 from routes import auth, panel, chat
+from app.api.routes_admin import router as admin_router
+from app.api.routes_panel import router as app_panel_router
+from app.api.routes_student import router as student_router
 
-app = FastAPI()
+app = FastAPI(title="Placify API", version="1.0.0")
+app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+app.include_router(admin_router, prefix="/api/admin", tags=["admin"])
+app.include_router(app_panel_router, prefix="/api/panel", tags=["panel"])
+app.include_router(student_router, prefix="/api/student", tags=["student"])
 
 # Startup Event to confirm MongoDB connection
 @app.on_event("startup")
@@ -130,3 +137,6 @@ async def parse_student_resume(file: UploadFile = File(...)):
         "parsed": {"skills": ["Python", "SQL", "React"]}, 
         "missing_skills": ["Docker"]
     }
+@app.get("/health")
+def health() -> dict[str, str]:
+	return {"status": "ok", "service": "placify"}
