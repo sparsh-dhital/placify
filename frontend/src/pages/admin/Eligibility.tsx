@@ -29,7 +29,7 @@ export default function Eligibility() {
     setSelectedStudent(null);
     try {
       // Toggle 'true' to 'false' when testing with the live FastAPI backend
-      const result = await runEligibility(activeJobId);
+      const result = await runEligibility(activeJobId, true);
       setData(result);
     } catch (error) {
       console.error(error);

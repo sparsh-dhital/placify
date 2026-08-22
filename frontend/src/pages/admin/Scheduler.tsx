@@ -26,7 +26,7 @@ export default function Scheduler() {
     setConflictResolved(false);
     try {
       // Toggle 'true' to 'false' when backend API is live
-      const result = await generateSchedule(activeJobId);
+      const result = await generateSchedule(activeJobId, true);
       setData(result);
     } catch (error) {
       console.error(error);

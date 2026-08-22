@@ -27,7 +27,7 @@ export default function Matching() {
     setSelectedMatch(null);
     try {
       // Toggle 'true' to 'false' when testing with the live FastAPI backend
-      const result = await generateMatches(activeJobId);
+      const result = await generateMatches(activeJobId, true);
       setData(result);
       if (result.matches.length > 0) {
         setSelectedMatch(result.matches[0]); // Auto-select first candidate
