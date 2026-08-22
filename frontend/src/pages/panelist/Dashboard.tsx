@@ -13,18 +13,25 @@ import {
   Building,
   AlertCircle,
 } from "lucide-react";
+import { submitInterviewFeedback } from "../../services/api";
 
 export default function PanelistDashboard() {
   const [selectedCandidate, setSelectedCandidate] = useState<string>("c1");
   const [verdict, setVerdict] = useState<"Hire" | "Reject" | "Hold" | null>(
     null,
   );
-  const [techScore, setTechScore] = useState(4);
+  const [techScore, setTechScore] = useState(0);
   const [notes, setNotes] = useState("");
+
   const [isSynthesizing, setIsSynthesizing] = useState(false);
   const [reportedIssue, setReportedIssue] = useState(false);
 
-  const schedule = [
+  // Submission States
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+
+  // Moved schedule into state so we can dynamically update it when an interview is completed
+  const [schedule, setSchedule] = useState([
     {
       id: "c1",
       name: "Aarav Mehta",
@@ -55,10 +62,11 @@ export default function PanelistDashboard() {
       branch: "ECE",
       skills: ["Java", "SQL"],
     },
-  ];
+  ]);
 
   const current =
     schedule.find((s) => s.id === selectedCandidate) || schedule[0];
+  const pendingCount = schedule.filter((s) => s.status === "pending").length;
 
   const handleAISynthesize = () => {
     setIsSynthesizing(true);
@@ -70,6 +78,59 @@ export default function PanelistDashboard() {
       setVerdict("Hire");
       setIsSynthesizing(false);
     }, 1200);
+  };
+
+  const handleSubmitEvaluation = async () => {
+    if (!verdict) return;
+
+    setIsSubmitting(true);
+
+    try {
+      // Map the UI verdict to the API payload expectations
+      const overallResult =
+        verdict === "Hire" ? "pass" : verdict === "Reject" ? "fail" : "hold";
+
+      await submitInterviewFeedback(
+        {
+          interview_id: current.id,
+          technical_score: techScore,
+          communication_score: techScore, // Defaulting to same score for demo
+          problem_solving_score: techScore, // Defaulting to same score for demo
+          overall_result: overallResult,
+          comments: notes,
+        },
+        true,
+      ); // Setting useMock = true for the demo environment
+
+      setSubmitSuccess(true);
+
+      // Update the local schedule to mark candidate as completed
+      setSchedule((prev) =>
+        prev.map((c) =>
+          c.id === current.id ? { ...c, status: "completed" } : c,
+        ),
+      );
+
+      // Show success state for 1.5s, then reset and move to next candidate
+      setTimeout(() => {
+        setSubmitSuccess(false);
+        setIsSubmitting(false);
+        setVerdict(null);
+        setTechScore(0);
+        setNotes("");
+
+        // Auto-select the next pending candidate
+        const nextPending = schedule.find(
+          (c) => c.id !== current.id && c.status === "pending",
+        );
+        if (nextPending) {
+          setSelectedCandidate(nextPending.id);
+        }
+      }, 1500);
+    } catch (error) {
+      console.error("Failed to submit evaluation:", error);
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -88,11 +149,12 @@ export default function PanelistDashboard() {
           </p>
         </div>
         <div className="px-4 py-2 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 rounded-xl text-sm font-semibold text-indigo-600 dark:text-indigo-400 flex items-center gap-2">
-          <Clock className="w-4 h-4" /> Today&apos;s Roster: 2 Remaining
+          <Clock className="w-4 h-4" /> Today&apos;s Roster: {pendingCount}{" "}
+          Remaining
         </div>
       </header>
 
-      {/* Main Grid with Generous Spacing */}
+      {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 relative z-10">
         {/* Left Column: Schedule Sidebar & Venue Status Widget */}
         <div className="space-y-6">
@@ -107,7 +169,7 @@ export default function PanelistDashboard() {
                 <button
                   key={cand.id}
                   onClick={() => setSelectedCandidate(cand.id)}
-                  className={`w-full text-left p-4 rounded-2xl border transition-all cursor-none ${
+                  className={`w-full text-left p-4 rounded-2xl border transition-all cursor-pointer ${
                     selectedCandidate === cand.id
                       ? "bg-indigo-50 dark:bg-indigo-500/10 border-indigo-500/50 shadow-md"
                       : "bg-transparent border-slate-200 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/5"
@@ -160,7 +222,7 @@ export default function PanelistDashboard() {
 
             <button
               onClick={() => setReportedIssue(true)}
-              className="w-full mt-2 py-3 px-4 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-none"
+              className="w-full mt-2 py-3 px-4 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
             >
               <AlertCircle className="w-4 h-4" />{" "}
               {reportedIssue ? "Issue Logged to Admin" : "Report Venue Issue"}
@@ -184,7 +246,7 @@ export default function PanelistDashboard() {
                 </span>
               </div>
             </div>
-            <button className="flex items-center justify-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-white text-sm font-bold rounded-xl transition-colors cursor-none">
+            <button className="flex items-center justify-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-white text-sm font-bold rounded-xl transition-colors cursor-pointer">
               <FileText className="w-4 h-4" /> View CV
             </button>
           </div>
@@ -197,8 +259,8 @@ export default function PanelistDashboard() {
                 </h3>
                 <button
                   onClick={handleAISynthesize}
-                  disabled={isSynthesizing}
-                  className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-sm transition-all cursor-none"
+                  disabled={isSynthesizing || current.status === "completed"}
+                  className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-sm transition-all cursor-pointer disabled:opacity-50"
                 >
                   <Wand2 className="w-3.5 h-3.5" />{" "}
                   {isSynthesizing ? "Synthesizing..." : "AI Synthesize Notes"}
@@ -219,8 +281,9 @@ export default function PanelistDashboard() {
                   <button
                     key={star}
                     type="button"
+                    disabled={current.status === "completed"}
                     onClick={() => setTechScore(star)}
-                    className={`p-3 rounded-xl border transition-colors cursor-none ${
+                    className={`p-3 rounded-xl border transition-colors cursor-pointer disabled:cursor-not-allowed ${
                       star <= techScore
                         ? "bg-amber-500/10 border-amber-500 text-amber-400"
                         : "bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-400"
@@ -240,8 +303,9 @@ export default function PanelistDashboard() {
                 {(["Hire", "Hold", "Reject"] as const).map((opt) => (
                   <button
                     key={opt}
+                    disabled={current.status === "completed"}
                     onClick={() => setVerdict(opt)}
-                    className={`py-3 text-sm font-bold rounded-xl border transition-all cursor-none ${
+                    className={`py-3 text-sm font-bold rounded-xl border transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed ${
                       verdict === opt
                         ? opt === "Hire"
                           ? "bg-emerald-500 text-white border-emerald-600 shadow-lg"
@@ -264,15 +328,39 @@ export default function PanelistDashboard() {
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
+                disabled={current.status === "completed"}
                 placeholder="Type observations or click AI Synthesize Notes..."
-                className="w-full h-28 p-3.5 bg-slate-50 dark:bg-[#05050A] border border-slate-200 dark:border-white/10 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none cursor-none"
+                className="w-full h-28 p-3.5 bg-slate-50 dark:bg-[#05050A] border border-slate-200 dark:border-white/10 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none cursor-text disabled:opacity-60 disabled:cursor-not-allowed"
               />
             </div>
           </div>
 
           <div className="mt-8 pt-6 border-t border-slate-200 dark:border-white/10 flex justify-end">
-            <button className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold rounded-xl shadow-lg shadow-indigo-600/25 transition-all cursor-none">
-              <Send className="w-4 h-4" /> Submit Official Evaluation
+            <button
+              onClick={handleSubmitEvaluation}
+              disabled={
+                !verdict || isSubmitting || current.status === "completed"
+              }
+              className={`w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 text-white text-sm font-bold rounded-xl shadow-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                submitSuccess
+                  ? "bg-emerald-500 shadow-emerald-500/25"
+                  : "bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/25"
+              }`}
+            >
+              {isSubmitting ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />{" "}
+                  Submitting...
+                </>
+              ) : submitSuccess ? (
+                <>
+                  <CheckCircle2 className="w-4 h-4" /> Saved Successfully
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4" /> Submit Official Evaluation
+                </>
+              )}
             </button>
           </div>
         </section>
