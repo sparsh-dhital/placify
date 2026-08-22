@@ -22,6 +22,7 @@ import type {
 } from "../../services/api";
 import { getStudentDashboard, parseStudentResume } from "../../services/api";
 import { cn } from "../../utils/cn";
+import { AICritic } from "../../components/ui/AICritic"; // <-- AI Critic Imported
 
 export default function StudentDashboard() {
   const [isLoading, setIsLoading] = useState(true);
@@ -467,6 +468,9 @@ export default function StudentDashboard() {
           )}
         </div>
       </div>
+
+      {/* Floating Groq-powered AI Critic */}
+      <AICritic />
     </main>
   );
 }

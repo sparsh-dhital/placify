@@ -14,6 +14,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { submitInterviewFeedback } from "../../services/api";
+import { AICritic } from "../../components/ui/AICritic"; // <-- AI Critic Imported
 
 export default function PanelistDashboard() {
   const [selectedCandidate, setSelectedCandidate] = useState<string>("c1");
@@ -30,7 +31,6 @@ export default function PanelistDashboard() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
 
-  // Moved schedule into state so we can dynamically update it when an interview is completed
   const [schedule, setSchedule] = useState([
     {
       id: "c1",
@@ -86,7 +86,6 @@ export default function PanelistDashboard() {
     setIsSubmitting(true);
 
     try {
-      // Map the UI verdict to the API payload expectations
       const overallResult =
         verdict === "Hire" ? "pass" : verdict === "Reject" ? "fail" : "hold";
 
@@ -94,24 +93,22 @@ export default function PanelistDashboard() {
         {
           interview_id: current.id,
           technical_score: techScore,
-          communication_score: techScore, // Defaulting to same score for demo
-          problem_solving_score: techScore, // Defaulting to same score for demo
+          communication_score: techScore,
+          problem_solving_score: techScore,
           overall_result: overallResult,
           comments: notes,
         },
         true,
-      ); // Setting useMock = true for the demo environment
+      );
 
       setSubmitSuccess(true);
 
-      // Update the local schedule to mark candidate as completed
       setSchedule((prev) =>
         prev.map((c) =>
           c.id === current.id ? { ...c, status: "completed" } : c,
         ),
       );
 
-      // Show success state for 1.5s, then reset and move to next candidate
       setTimeout(() => {
         setSubmitSuccess(false);
         setIsSubmitting(false);
@@ -119,7 +116,6 @@ export default function PanelistDashboard() {
         setTechScore(0);
         setNotes("");
 
-        // Auto-select the next pending candidate
         const nextPending = schedule.find(
           (c) => c.id !== current.id && c.status === "pending",
         );
@@ -365,6 +361,9 @@ export default function PanelistDashboard() {
           </div>
         </section>
       </div>
+
+      {/* Floating Groq-powered AI Critic */}
+      <AICritic />
     </main>
   );
 }

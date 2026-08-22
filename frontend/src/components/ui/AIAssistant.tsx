@@ -1,6 +1,7 @@
 // src/components/ui/AIAssistant.tsx
 import { useState, useRef, useEffect } from "react";
 import { MessageSquare, X, Send, Bot, Sparkles, User } from "lucide-react";
+import { sendChatMessage } from "../../services/api";
 
 interface Message {
   id: string;
@@ -20,7 +21,7 @@ export default function AIAssistant() {
       id: "msg_1",
       role: "assistant",
       content:
-        "Hello! I am Placify's AI Copilot. I can help you analyze job descriptions, explain match scores, or resolve scheduling conflicts. What do you need help with today?",
+        "Hello! I am Placify's AI Copilot. I analyze your active database state and workflows in real time. What do you need help with today?",
       timestamp: new Date(),
     },
   ]);
@@ -32,14 +33,15 @@ export default function AIAssistant() {
     }
   }, [messages, isTyping, isOpen]);
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputValue.trim()) return;
 
+    const userText = inputValue;
     const newUserMessage: Message = {
       id: Date.now().toString(),
       role: "user",
-      content: inputValue,
+      content: userText,
       timestamp: new Date(),
     };
 
@@ -47,18 +49,32 @@ export default function AIAssistant() {
     setInputValue("");
     setIsTyping(true);
 
-    // Mock AI Response Delay
-    setTimeout(() => {
+    try {
+      // Get role and email from local storage to provide accurate database context
+      const userStr = localStorage.getItem("placify_user");
+      const role = userStr ? JSON.parse(userStr).role : "student";
+      const email = userStr ? JSON.parse(userStr).email : "demo@placify.com";
+
+      const data = await sendChatMessage(email, role, userText);
+
       const newAIMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content:
-          "I've noted your request. Once the backend integration is live, I will be able to directly query the database and assist you with real-time placement operations!",
+        content: data.reply,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, newAIMessage]);
+    } catch (error: any) {
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: `⚠️ Connection Error: ${error.message || "Failed to reach backend analysis engine."}`,
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
       setIsTyping(false);
-    }, 1500);
+    }
   };
 
   return (
@@ -86,14 +102,14 @@ export default function AIAssistant() {
                   <Sparkles className="w-3 h-3 text-amber-500" />
                 </h3>
                 <p className="text-[10px] font-semibold text-emerald-500 uppercase tracking-wider">
-                  Online
+                  Online (Groq Live)
                 </p>
               </div>
             </div>
             <button
               onClick={() => setIsOpen(false)}
               aria-label="Close AI Assistant"
-              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-200 dark:hover:bg-white/10 text-slate-500 dark:text-slate-400 transition-colors cursor-none focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-200 dark:hover:bg-white/10 text-slate-500 dark:text-slate-400 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               <X className="w-4 h-4" />
             </button>
@@ -178,13 +194,13 @@ export default function AIAssistant() {
                 onChange={(e) => setInputValue(e.target.value)}
                 placeholder="Ask Placify AI..."
                 aria-label="Type your message"
-                className="w-full pl-4 pr-12 py-3 bg-slate-50 dark:bg-[#05050A] border border-slate-200 dark:border-white/10 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all cursor-none"
+                className="w-full pl-4 pr-12 py-3 bg-slate-50 dark:bg-[#05050A] border border-slate-200 dark:border-white/10 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all cursor-text"
               />
               <button
                 type="submit"
                 disabled={!inputValue.trim() || isTyping}
                 aria-label="Send message"
-                className="absolute right-1.5 w-8 h-8 flex items-center justify-center bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-lg transition-colors cursor-none focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-[#0A0A12]"
+                className="absolute right-1.5 w-8 h-8 flex items-center justify-center bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-lg transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-[#0A0A12]"
               >
                 <Send className="w-4 h-4 ml-0.5" />
               </button>
@@ -198,7 +214,7 @@ export default function AIAssistant() {
         onClick={() => setIsOpen(!isOpen)}
         aria-expanded={isOpen}
         aria-label={isOpen ? "Close AI Assistant" : "Open AI Assistant"}
-        className={`w-14 h-14 flex items-center justify-center rounded-full shadow-2xl transition-all duration-300 cursor-none focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-4 dark:focus:ring-offset-[#0A0A12] ${
+        className={`w-14 h-14 flex items-center justify-center rounded-full shadow-2xl transition-all duration-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-4 dark:focus:ring-offset-[#0A0A12] ${
           isOpen
             ? "bg-slate-200 dark:bg-white/10 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-white/20"
             : "bg-indigo-600 hover:bg-indigo-500 text-white hover:scale-105 shadow-indigo-500/25"

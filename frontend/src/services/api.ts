@@ -1,7 +1,7 @@
 // src/services/api.ts
 
 // ==========================================
-// 0. AUTHENTICATION (MongoDB)
+// 0. AUTHENTICATION & AI CRITIC (MongoDB)
 // ==========================================
 export const API_URL = "http://localhost:8000/api";
 
@@ -45,6 +45,27 @@ export async function verifyOtpLogin(email: string, otp: string) {
   }
   return response.json();
 }
+
+export const sendChatMessage = async (
+  userId: string,
+  role: string,
+  message: string,
+) => {
+  const response = await fetch(`${API_URL}/chat/analyze`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ user_id: userId, role, message }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(
+      errorData.detail ||
+        `Server error: ${response.status} ${response.statusText}`,
+    );
+  }
+  return response.json();
+};
 
 // ==========================================
 // 1. JD ANALYZER AGENT
