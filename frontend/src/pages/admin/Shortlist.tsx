@@ -30,7 +30,7 @@ export default function Shortlist() {
   useEffect(() => {
     const fetchRecommendations = async () => {
       try {
-        const result = await generateMatches(activeJobId, true);
+        const result = await generateMatches(activeJobId);
         setData(result);
 
         // Auto-approve candidates with a score > 75 to save time, others default to reject

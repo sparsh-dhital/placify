@@ -1,52 +1,6 @@
 // src/services/api.ts
 
 // ==========================================
-// 0. AUTHENTICATION (MongoDB)
-// ==========================================
-export const API_URL = "http://localhost:8000/api";
-
-export async function loginUser(credentials: any) {
-  const response = await fetch(`${API_URL}/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(credentials),
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || "Login failed");
-  }
-
-  return response.json();
-}
-
-export async function requestOtpLogin(email: string) {
-  const response = await fetch(`${API_URL}/auth/request-otp`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email }),
-  });
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || "Failed to request OTP");
-  }
-  return response.json();
-}
-
-export async function verifyOtpLogin(email: string, otp: string) {
-  const response = await fetch(`${API_URL}/auth/verify-otp`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, otp }),
-  });
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || "Invalid or expired OTP");
-  }
-  return response.json();
-}
-
-// ==========================================
 // 1. JD ANALYZER AGENT
 // ==========================================
 export interface JDAnalysisResponse {
@@ -86,6 +40,15 @@ export const analyzeJD = async (
   });
   if (!response.ok) throw new Error("Failed to analyze JD");
   return response.json();
+};
+
+export const analyzeJDFile = async (file: File): Promise<JDAnalysisResponse> => {
+  const extension = file.name.split(".").pop()?.toLowerCase();
+  const text = extension === "pdf" || file.type === "application/pdf"
+    ? await extractTextFromPdf(file)
+    : await file.text();
+  if (!text.trim()) throw new Error("No readable text was found in this file.");
+  return analyzeJD(text);
 };
 
 // ==========================================
@@ -484,6 +447,366 @@ export const getStudentDashboard = async (
 };
 
 // ==========================================
+// 8. RESUME PARSER + JOB MATCHING
+// ==========================================
+import * as pdfjsLib from "pdfjs-dist";
+import Tesseract from "tesseract.js";
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+  "pdfjs-dist/build/pdf.worker.min.mjs",
+  import.meta.url,
+).toString();
+
+export interface ParsedResumeData {
+  name: string;
+  email: string;
+  phone: string;
+  cgpa: number | null;
+  skills: string[];
+  education: string[];
+  summary: string;
+  extracted_text: string;
+}
+
+export interface ResumeMatchResult {
+  success: boolean;
+  file_name: string;
+  company: string;
+  role: string;
+  required_skills: string[];
+  matched_skills: string[];
+  missing_skills: string[];
+  eligibility_score: number;
+  eligibility_status: "Eligible" | "Borderline" | "Not Eligible";
+  reasons: string[];
+  parsed: ParsedResumeData;
+}
+
+const skillCatalog = [
+  "Python",
+  "Java",
+  "C++",
+  "JavaScript",
+  "TypeScript",
+  "React",
+  "Node",
+  "Node.js",
+  "SQL",
+  "MongoDB",
+  "Git",
+  "Docker",
+  "AWS",
+  "Machine Learning",
+  "Data Structures",
+  "Algorithms",
+  "Django",
+  "Flask",
+  "Spring",
+  "Express",
+  "Power BI",
+  "Tableau",
+  "Excel",
+];
+
+const normalizeSkill = (skill: string) => {
+  const text = skill.trim();
+  if (!text) return "";
+  const lower = text.toLowerCase();
+  if (lower.includes("node.js") || lower.includes("node js") || lower.includes("node")) return "Node.js";
+  if (lower.includes("react.js") || lower.includes("react")) return "React";
+  if (lower.includes("python") || lower.includes("py")) return "Python";
+  if (lower.includes("sql") || lower.includes("structured query")) return "SQL";
+  if (lower.includes("docker")) return "Docker";
+  if (lower.includes("machine learning") || lower.includes("ml")) return "Machine Learning";
+  if (lower.includes("javascript") || lower.includes("js")) return "JavaScript";
+  if (lower.includes("typescript") || lower.includes("ts")) return "TypeScript";
+  if (lower.includes("data structures") || lower.includes("dsa")) return "Data Structures";
+  if (lower.includes("algorithm")) return "Algorithms";
+  if (lower.includes("git")) return "Git";
+  if (lower.includes("mongodb") || lower.includes("mongo db")) return "MongoDB";
+  return text;
+};
+
+const cleanOcrText = (text: string) =>
+  text
+    .replace(/\r/g, "\n")
+    .split("")
+    .filter((character) => character === "\n" || character === "\t" || character.charCodeAt(0) >= 32)
+    .join("")
+    .replace(/[ ]{2,}/g, " ")
+    .trim();
+
+const recognizeCanvasText = async (canvas: HTMLCanvasElement) => {
+  const result = await Tesseract.recognize(canvas, "eng", {
+    logger: () => undefined,
+  });
+  return cleanOcrText(result.data.text || "");
+};
+
+const extractTextFromPdf = async (file: File): Promise<string> => {
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const pages: string[] = [];
+
+  for (let i = 1; i <= pdf.numPages; i += 1) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    const text = content.items
+      .map((item) => ("str" in item ? item.str : ""))
+      .join(" ");
+    pages.push(text);
+  }
+
+  const textLayer = pages.join("\n").trim();
+  if (textLayer.length >= 40) return textLayer;
+
+  // Scanned resumes have no text layer, so render each page and run OCR.
+  const ocrPages: string[] = [];
+  for (let i = 1; i <= pdf.numPages; i += 1) {
+    const page = await pdf.getPage(i);
+    const viewport = page.getViewport({ scale: 2 });
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.ceil(viewport.width);
+    canvas.height = Math.ceil(viewport.height);
+    const context = canvas.getContext("2d");
+    if (!context) continue;
+    await page.render({ canvas, canvasContext: context, viewport }).promise;
+    const text = await recognizeCanvasText(canvas);
+    if (text) ocrPages.push(text);
+  }
+
+  return [textLayer, ...ocrPages].filter(Boolean).join("\n");
+};
+
+const preprocessCanvasImage = (
+  canvas: HTMLCanvasElement,
+  invert: boolean = false,
+  threshold: number = 140,
+) => {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return canvas;
+
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imageData.data;
+
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+
+    let gray = 0.299 * r + 0.587 * g + 0.114 * b;
+
+    if (invert) {
+      gray = 255 - gray;
+    }
+
+    if (gray < threshold) gray = gray * 1.7;
+    else if (gray > threshold + 40) gray = 255;
+    else gray = gray * 1.12 + 16;
+
+    const finalValue = Math.max(0, Math.min(255, gray));
+    data[i] = finalValue;
+    data[i + 1] = finalValue;
+    data[i + 2] = finalValue;
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+  return canvas;
+};
+
+const extractTextFromImage = async (file: File): Promise<string> => {
+  const objectUrl = URL.createObjectURL(file);
+
+  try {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error("Unable to load image."));
+      img.src = objectUrl;
+    });
+
+    const maxDimension = 3200;
+    const scale = Math.min(2.5, maxDimension / Math.max(image.width, image.height));
+
+    const baseCanvas = document.createElement("canvas");
+    const baseCtx = baseCanvas.getContext("2d");
+    if (!baseCtx) return "";
+
+    baseCanvas.width = Math.max(1, Math.round(image.width * scale));
+    baseCanvas.height = Math.max(1, Math.round(image.height * scale));
+    baseCtx.fillStyle = "#ffffff";
+    baseCtx.fillRect(0, 0, baseCanvas.width, baseCanvas.height);
+    baseCtx.drawImage(image, 0, 0, baseCanvas.width, baseCanvas.height);
+
+    const candidates: HTMLCanvasElement[] = [baseCanvas];
+    for (const [invert, threshold] of [[false, 120], [true, 160], [false, 170]] as const) {
+      const candidate = document.createElement("canvas");
+      candidate.width = baseCanvas.width;
+      candidate.height = baseCanvas.height;
+      const candidateContext = candidate.getContext("2d");
+      if (!candidateContext) continue;
+      candidateContext.drawImage(baseCanvas, 0, 0);
+      candidates.push(preprocessCanvasImage(candidate, invert, threshold));
+    }
+
+    const recognizedTexts: string[] = [];
+
+    for (const canvas of candidates) {
+      const text = await recognizeCanvasText(canvas);
+
+      if (text && text.length > 20) recognizedTexts.push(text);
+    }
+
+    const directResult = await Tesseract.recognize(file, "eng", {
+      logger: () => undefined,
+    });
+    const directText = cleanOcrText(directResult.data.text || "");
+    if (directText && directText.length > 20) recognizedTexts.push(directText);
+
+    if (!recognizedTexts.length) return "";
+    return recognizedTexts
+      .sort((a, b) => b.length - a.length)[0]
+      .trim();
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+};
+
+const extractTextFromTextFile = async (file: File): Promise<string> => {
+  return await file.text();
+};
+
+const resumeParsingAgent = async (file: File): Promise<string> => {
+  const extension = file.name.split(".").pop()?.toLowerCase() || "";
+  const fileType = file.type.toLowerCase();
+  if (extension === "pdf" || fileType === "application/pdf") return extractTextFromPdf(file);
+  if (["png", "jpg", "jpeg", "webp"].includes(extension) || fileType.startsWith("image/")) return extractTextFromImage(file);
+  return extractTextFromTextFile(file);
+};
+
+const parseResumeText = (text: string): ParsedResumeData => {
+  const normalizedText = text.replace(/\s+/g, " ").trim();
+  const cleanText = normalizedText || "";
+  const lines = text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const emailMatch = text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+  const phoneMatch = text.match(/(?:\+?\d{1,3}[-.\s]?)?(?:\d{10}|\d{3}[-.\s]\d{3}[-.\s]\d{4})/);
+  const cgpaMatch = text.match(/(?:CGPA|Cumulative GPA|GPA|cgpa|CGP A)\s*[:=]?\s*(\d+(?:\.\d+)?)\s*(?:\/\s*10)?/i);
+
+  const fallbackName = lines.find((line) => {
+    const normalized = line.replace(/\s+/g, " ");
+    return (
+      /^[A-Z][A-Za-z'-.]+(?:\s+[A-Z][A-Za-z'-.]+){0,4}$/.test(normalized) &&
+      !/[0-9]/.test(normalized) &&
+      normalized.length > 2 &&
+      !/(SKILLS|PROJECTS|EDUCATION|EXPERIENCE|CONTACT|PHONE|EMAIL)/i.test(normalized)
+    );
+  });
+
+  const education = lines.filter((line) =>
+    /B\.Tech|BTech|M\.Tech|MBA|B\.E|Bachelor|Master|Engineering|Computer Science|CSE|ECE|Computer Science and Engineering/i.test(line),
+  );
+
+  const skillMatches = new Set<string>();
+  skillCatalog.forEach((skill) => {
+    const regex = new RegExp(skill.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+    if (regex.test(text)) {
+      skillMatches.add(normalizeSkill(skill));
+    }
+  });
+
+  const fallbackSkills = Array.from(
+    new Set(
+      (text.match(/(?:Python|Java|C\+\+|JavaScript|TypeScript|React|SQL|AWS|Docker|Git|MongoDB|Node\.js|Node|Machine Learning|ML|Algorithms|Data Structures|Django|Flask|Spring|Express|MongoDB|Tableau|Power BI|Excel)/gi) || [])
+        .map((skill) => normalizeSkill(skill)),
+    ),
+  );
+
+  const extractedSkills = [...Array.from(skillMatches), ...fallbackSkills].filter(Boolean);
+
+  return {
+    name: fallbackName || "Student",
+    email: emailMatch?.[0] || "N/A",
+    phone: phoneMatch?.[0] || "N/A",
+    cgpa: cgpaMatch ? Number(cgpaMatch[1]) : null,
+    skills: [...new Set(extractedSkills.map((s) => normalizeSkill(s)))].filter(Boolean),
+    education: education.slice(0, 3),
+    summary: cleanText.slice(0, 220) || "Resume parsed successfully.",
+    extracted_text: cleanText,
+  };
+};
+
+export const parseStudentResume = async (
+  file: File,
+  targetJob: { company: string; role: string; matched_skills: string[]; missing_skills: string[] } = {
+    company: "TechNova Solutions",
+    role: "Software Engineer",
+    matched_skills: ["Python", "SQL", "Git", "React"],
+    missing_skills: ["Docker"],
+  },
+): Promise<ResumeMatchResult> => {
+  const resumeText = await resumeParsingAgent(file);
+
+  const parsed = parseResumeText(resumeText);
+  const requiredSkills = [...new Set(targetJob.matched_skills)];
+  const normalizedParsedSkills = parsed.skills.map((skill) => normalizeSkill(skill).toLowerCase());
+
+  const matchedSkills = requiredSkills.filter((skill) => {
+    const normalizedSkill = normalizeSkill(skill).toLowerCase();
+    return normalizedParsedSkills.some(
+      (parsedSkill) =>
+        parsedSkill.includes(normalizedSkill) ||
+        normalizedSkill.includes(parsedSkill),
+    );
+  });
+
+  const missingSkills = requiredSkills.filter(
+    (skill) => !matchedSkills.includes(skill),
+  );
+
+  const cgpaScore = parsed.cgpa ? Math.max(0, Math.min(100, (parsed.cgpa / 10) * 100)) : 0;
+  const skillCoverage = requiredSkills.length
+    ? (matchedSkills.length / requiredSkills.length) * 100
+    : 0;
+  const score = Math.round((cgpaScore * 0.45) + (skillCoverage * 0.55));
+
+  let eligibilityStatus: "Eligible" | "Borderline" | "Not Eligible" = "Not Eligible";
+  if (score >= 75 && (parsed.cgpa === null || parsed.cgpa >= 7.0)) {
+    eligibilityStatus = "Eligible";
+  } else if (score >= 55) {
+    eligibilityStatus = "Borderline";
+  }
+
+  const reasons: string[] = [];
+  if (parsed.cgpa !== null && parsed.cgpa < 7) {
+    reasons.push("CGPA below the target eligibility threshold.");
+  }
+  if (missingSkills.length > 0) {
+    reasons.push(`Missing key skills: ${missingSkills.join(", ")}.`);
+  }
+  if (!parsed.skills.length) {
+    reasons.push("Resume text was not detected clearly enough for skill extraction.");
+  }
+
+  return {
+    success: true,
+    file_name: file.name,
+    company: targetJob.company,
+    role: targetJob.role,
+    required_skills: requiredSkills,
+    matched_skills: matchedSkills,
+    missing_skills: missingSkills,
+    eligibility_score: score,
+    eligibility_status: eligibilityStatus,
+    reasons: reasons.length ? reasons : ["Strong match with the company requirements."],
+    parsed,
+  };
+};
+
+// ==========================================
 // 7. PANELIST DASHBOARD
 // ==========================================
 export interface PanelCandidate {
@@ -588,226 +911,4 @@ export const submitInterviewFeedback = async (
   });
   if (!response.ok) throw new Error("Failed to submit feedback");
   return response.json();
-};
-
-// ==========================================
-// 8. RESUME PARSER + JOB MATCHING (Gaurav's Engine)
-// ==========================================
-import * as pdfjsLib from "pdfjs-dist";
-import Tesseract from "tesseract.js";
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-  "pdfjs-dist/build/pdf.worker.min.mjs",
-  import.meta.url,
-).toString();
-
-export interface ParsedResumeData {
-  name: string;
-  email: string;
-  phone: string;
-  cgpa: number | null;
-  skills: string[];
-  education: string[];
-  summary: string;
-}
-
-export interface ResumeMatchResult {
-  success: boolean;
-  file_name: string;
-  company: string;
-  role: string;
-  required_skills: string[];
-  matched_skills: string[];
-  missing_skills: string[];
-  eligibility_score: number;
-  eligibility_status: "Eligible" | "Borderline" | "Not Eligible";
-  reasons: string[];
-  parsed: ParsedResumeData;
-}
-
-const skillCatalog = [
-  "Python",
-  "Java",
-  "C++",
-  "JavaScript",
-  "TypeScript",
-  "React",
-  "Node",
-  "Node.js",
-  "SQL",
-  "MongoDB",
-  "Git",
-  "Docker",
-  "AWS",
-  "Machine Learning",
-  "Data Structures",
-  "Algorithms",
-  "Django",
-  "Flask",
-  "Spring",
-  "Express",
-  "Power BI",
-  "Tableau",
-  "Excel",
-];
-
-const normalizeSkill = (skill: string) => {
-  const text = skill.trim();
-  if (!text) return "";
-  const lower = text.toLowerCase();
-  if (
-    lower.includes("node.js") ||
-    lower.includes("node js") ||
-    lower.includes("node")
-  )
-    return "Node.js";
-  if (lower.includes("react.js") || lower.includes("react")) return "React";
-  if (lower.includes("python") || lower.includes("py")) return "Python";
-  if (lower.includes("sql")) return "SQL";
-  if (lower.includes("docker")) return "Docker";
-  if (lower.includes("machine learning") || lower.includes("ml"))
-    return "Machine Learning";
-  if (lower.includes("javascript") || lower.includes("js")) return "JavaScript";
-  if (lower.includes("typescript") || lower.includes("ts")) return "TypeScript";
-  if (lower.includes("git")) return "Git";
-  if (lower.includes("mongodb")) return "MongoDB";
-  return text;
-};
-
-const extractTextFromPdf = async (file: File): Promise<string> => {
-  const arrayBuffer = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-  const pages: string[] = [];
-
-  for (let i = 1; i <= pdf.numPages; i += 1) {
-    const page = await pdf.getPage(i);
-    const content = await page.getTextContent();
-    const text = content.items
-      .map((item) => ("str" in item ? item.str : ""))
-      .join(" ");
-    pages.push(text);
-  }
-
-  return pages.join("\n");
-};
-
-const extractTextFromImage = async (file: File): Promise<string> => {
-  const objectUrl = URL.createObjectURL(file);
-  try {
-    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => resolve(img);
-      img.onerror = () => reject(new Error("Unable to load image."));
-      img.src = objectUrl;
-    });
-
-    const maxDimension = 3200;
-    const scale = Math.min(
-      2.5,
-      maxDimension / Math.max(image.width, image.height),
-    );
-
-    const baseCanvas = document.createElement("canvas");
-    const baseCtx = baseCanvas.getContext("2d");
-    if (!baseCtx) return "";
-
-    baseCanvas.width = Math.max(1, Math.round(image.width * scale));
-    baseCanvas.height = Math.max(1, Math.round(image.height * scale));
-    baseCtx.fillStyle = "#ffffff";
-    baseCtx.fillRect(0, 0, baseCanvas.width, baseCanvas.height);
-    baseCtx.drawImage(image, 0, 0, baseCanvas.width, baseCanvas.height);
-
-    const result = await Tesseract.recognize(baseCanvas, "eng", {
-      logger: () => undefined,
-    });
-    return (result.data.text || "").replace(/\r/g, "\n").trim();
-  } finally {
-    URL.revokeObjectURL(objectUrl);
-  }
-};
-
-const parseResumeText = (text: string): ParsedResumeData => {
-  const lines = text
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-  const emailMatch = text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
-  const phoneMatch = text.match(
-    /(?:\+?\d{1,3}[-.\s]?)?(?:\d{10}|\d{3}[-.\s]\d{3}[-.\s]\d{4})/,
-  );
-  const cgpaMatch = text.match(
-    /(?:CGPA|Cumulative GPA|GPA|cgpa)\s*[:=]?\s*(\d+(?:\.\d+)?)/i,
-  );
-
-  const skillMatches = new Set<string>();
-  skillCatalog.forEach((skill) => {
-    const regex = new RegExp(skill.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
-    if (regex.test(text)) {
-      skillMatches.add(normalizeSkill(skill));
-    }
-  });
-
-  return {
-    name: lines.find((l) => l.length > 2 && !/[0-9]/.test(l)) || "Student",
-    email: emailMatch?.[0] || "N/A",
-    phone: phoneMatch?.[0] || "N/A",
-    cgpa: cgpaMatch ? Number(cgpaMatch[1]) : null,
-    skills: Array.from(skillMatches),
-    education: lines
-      .filter((l) => /B\.Tech|BTech|CSE|Engineering/i.test(l))
-      .slice(0, 3),
-    summary: text.slice(0, 220) || "Resume parsed successfully.",
-  };
-};
-
-export const parseStudentResume = async (
-  file: File,
-  targetJob = {
-    company: "TechNova Solutions",
-    role: "Software Engineer",
-    matched_skills: ["Python", "SQL", "Git", "React"],
-    missing_skills: ["Docker"],
-  },
-): Promise<ResumeMatchResult> => {
-  const extension = file.name.split(".").pop()?.toLowerCase() || "";
-  let resumeText = "";
-
-  if (extension === "pdf") {
-    resumeText = await extractTextFromPdf(file);
-  } else if (["png", "jpg", "jpeg", "webp"].includes(extension)) {
-    resumeText = await extractTextFromImage(file);
-  } else {
-    resumeText = await file.text();
-  }
-
-  const parsed = parseResumeText(resumeText);
-  const requiredSkills = [...new Set(targetJob.matched_skills)];
-  const matchedSkills = requiredSkills.filter((s) =>
-    parsed.skills.map((x) => x.toLowerCase()).includes(s.toLowerCase()),
-  );
-  const missingSkills = requiredSkills.filter(
-    (s) => !matchedSkills.includes(s),
-  );
-
-  const score = Math.round(
-    (parsed.cgpa ? parsed.cgpa / 10 : 0.7) * 45 +
-      (matchedSkills.length / requiredSkills.length) * 55,
-  );
-
-  return {
-    success: true,
-    file_name: file.name,
-    company: targetJob.company,
-    role: targetJob.role,
-    required_skills: requiredSkills,
-    matched_skills: matchedSkills,
-    missing_skills: missingSkills,
-    eligibility_score: score,
-    eligibility_status:
-      score >= 75 ? "Eligible" : score >= 55 ? "Borderline" : "Not Eligible",
-    reasons: missingSkills.length
-      ? [`Missing key skills: ${missingSkills.join(", ")}.`]
-      : ["Strong match with the company requirements."],
-    parsed,
-  };
 };
