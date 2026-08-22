@@ -4,6 +4,9 @@
 
 @layer base {
   html {
+    /* CRITICAL FOR LENIS: Forces the HTML to expand to the full document length */
+    height: auto; 
+    
     /* REMOVED: scroll-behavior: smooth; so Lenis can take over! */
     scroll-padding-top: 2rem;
   }

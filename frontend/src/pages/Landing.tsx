@@ -1,4 +1,5 @@
 // src/pages/Landing.tsx
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
@@ -20,16 +21,51 @@ import { Logo } from "../components/ui/Logo";
 export default function Landing() {
   const currentYear = new Date().getFullYear();
 
+  // Contact Form State Management
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    message: "",
+  });
+  const [status, setStatus] = useState<
+    "idle" | "loading" | "success" | "error"
+  >("idle");
+
+  const handleContactSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.name || !formData.email || !formData.message) return;
+
+    setStatus("loading");
+
+    try {
+      // Point this to your Python backend URL
+      const response = await fetch("http://localhost:8000/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) throw new Error("Failed to send message");
+
+      setStatus("success");
+      setFormData({ name: "", email: "", message: "" });
+
+      // Reset success message after 3 seconds
+      setTimeout(() => setStatus("idle"), 3000);
+    } catch (error) {
+      console.error(error);
+      setStatus("error");
+      setTimeout(() => setStatus("idle"), 3000);
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col selection:bg-indigo-500 selection:text-white relative bg-[#F8FAFC] dark:bg-[#05050A] text-slate-900 dark:text-slate-100 transition-colors duration-500 font-sans overflow-x-hidden">
-      {/* Ambient Backlighting (Dark Mode Only) */}
+      {/* Ambient Backlighting */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[350px] bg-gradient-to-b from-indigo-500/10 via-cyan-500/5 to-transparent blur-[120px] pointer-events-none rounded-full hidden dark:block" />
 
       {/* Sticky Navbar */}
-      <nav
-        className="w-full flex items-center justify-between px-5 sm:px-10 py-4 border-b border-slate-200/80 dark:border-white/10 bg-white/80 dark:bg-[#05050A]/80 backdrop-blur-2xl sticky top-0 z-50 transition-colors shadow-sm"
-        aria-label="Main Navigation"
-      >
+      <nav className="w-full flex items-center justify-between px-5 sm:px-10 py-4 border-b border-slate-200/80 dark:border-white/10 bg-white/80 dark:bg-[#05050A]/80 backdrop-blur-2xl sticky top-0 z-50 transition-colors shadow-sm">
         <div className="flex items-center gap-3">
           <Logo
             className="w-8 h-8 sm:w-9 sm:h-9 shadow-md"
@@ -43,7 +79,7 @@ export default function Landing() {
           <ThemeToggle />
           <Link
             to="/login"
-            className="group relative inline-flex items-center justify-center px-4 sm:px-5 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 dark:bg-indigo-600 dark:hover:bg-indigo-500 rounded-full overflow-hidden transition-all duration-300 hover:scale-[1.03] active:scale-95 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-lg shadow-indigo-600/25 shrink-0 whitespace-nowrap cursor-none"
+            className="group relative inline-flex items-center justify-center px-4 sm:px-5 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 dark:bg-indigo-600 dark:hover:bg-indigo-500 rounded-full overflow-hidden transition-all duration-300 hover:scale-[1.03] active:scale-95 shadow-lg shadow-indigo-600/25 shrink-0 cursor-none"
           >
             <span className="relative flex items-center gap-1.5">
               Get Started{" "}
@@ -148,7 +184,6 @@ export default function Landing() {
                 94% MATCH
               </span>
             </div>
-
             <div className="flex-1 flex flex-col justify-end z-10 pt-6">
               <div className="space-y-3 sm:space-y-4 w-full">
                 <div className="space-y-1.5">
@@ -175,7 +210,6 @@ export default function Landing() {
                 </div>
               </div>
             </div>
-
             <div className="z-10 mt-4">
               <h3 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mb-2">
                 Readiness Analytics
@@ -202,7 +236,6 @@ export default function Landing() {
                 </div>
               </div>
             </div>
-
             <div className="z-10 mt-4">
               <div className="flex items-center gap-2.5 mb-2">
                 <ShieldAlert className="w-5 h-5 text-amber-400" />
@@ -230,7 +263,6 @@ export default function Landing() {
                 Officer maintains absolute executive approval.
               </p>
             </div>
-
             <div className="flex-1 flex items-center justify-end z-10">
               <div className="bg-slate-50 dark:bg-[#05050A] border border-slate-200 dark:border-white/10 rounded-2xl p-4 sm:p-5 shadow-md w-full max-w-xs transform group-hover:scale-105 transition-transform duration-500 ease-out">
                 <div className="flex items-center justify-between mb-3 sm:mb-4">
@@ -254,12 +286,12 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* Support Section */}
+        {/* Support/Contact Section Fully Connected to Backend */}
         <section className="w-full max-w-3xl text-left relative z-10 mb-12 px-2 sm:px-0">
           <div className="bg-white dark:bg-[#0A0A12]/90 backdrop-blur-3xl border border-slate-200 dark:border-white/10 rounded-[2rem] sm:rounded-[2.5rem] p-6 sm:p-12 md:p-14 shadow-xl relative overflow-hidden">
             <div className="absolute -top-24 -right-24 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
 
-            <div className="text-center mb-8 sm:mb-10">
+            <div className="text-center mb-8 sm:mb-10 relative z-10">
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 text-xs font-semibold mb-3 sm:mb-4">
                 <Sparkles className="w-3.5 h-3.5" /> Enterprise Concierge
               </div>
@@ -273,8 +305,8 @@ export default function Landing() {
             </div>
 
             <form
-              className="space-y-4 sm:space-y-5"
-              onSubmit={(e) => e.preventDefault()}
+              className="space-y-4 sm:space-y-5 relative z-10"
+              onSubmit={handleContactSubmit}
             >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
                 <div className="relative">
@@ -283,8 +315,14 @@ export default function Landing() {
                   </div>
                   <input
                     type="text"
+                    required
+                    value={formData.name}
+                    onChange={(e) =>
+                      setFormData({ ...formData, name: e.target.value })
+                    }
                     placeholder="Full Name"
-                    className="w-full pl-11 pr-4 py-3 sm:py-3.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all cursor-none shadow-sm"
+                    className="w-full pl-11 pr-4 py-3 sm:py-3.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all cursor-none shadow-sm disabled:opacity-60"
+                    disabled={status === "loading"}
                   />
                 </div>
                 <div className="relative">
@@ -293,8 +331,14 @@ export default function Landing() {
                   </div>
                   <input
                     type="email"
+                    required
+                    value={formData.email}
+                    onChange={(e) =>
+                      setFormData({ ...formData, email: e.target.value })
+                    }
                     placeholder="University Email"
-                    className="w-full pl-11 pr-4 py-3 sm:py-3.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all cursor-none shadow-sm"
+                    className="w-full pl-11 pr-4 py-3 sm:py-3.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all cursor-none shadow-sm disabled:opacity-60"
+                    disabled={status === "loading"}
                   />
                 </div>
               </div>
@@ -304,15 +348,42 @@ export default function Landing() {
                 </div>
                 <textarea
                   rows={4}
+                  required
+                  value={formData.message}
+                  onChange={(e) =>
+                    setFormData({ ...formData, message: e.target.value })
+                  }
                   placeholder="How can we help your placement cell?"
-                  className="w-full pl-11 pr-4 py-3 sm:py-3.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all resize-none cursor-none shadow-sm"
+                  className="w-full pl-11 pr-4 py-3 sm:py-3.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all resize-none cursor-none shadow-sm disabled:opacity-60"
+                  disabled={status === "loading"}
                 />
               </div>
+
+              {status === "error" && (
+                <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 text-sm font-semibold rounded-xl text-center">
+                  Error sending message. Please try again.
+                </div>
+              )}
+
               <button
                 type="submit"
-                className="w-full flex items-center justify-center gap-2 py-3.5 sm:py-4 px-6 bg-indigo-600 hover:bg-indigo-500 dark:bg-indigo-600 dark:hover:bg-indigo-500 text-white text-sm font-semibold rounded-2xl hover:scale-[1.01] active:scale-95 transition-all cursor-none shadow-xl shadow-indigo-600/25"
+                disabled={status === "loading" || status === "success"}
+                className="w-full flex items-center justify-center gap-2 py-3.5 sm:py-4 px-6 bg-indigo-600 hover:bg-indigo-500 dark:bg-indigo-600 dark:hover:bg-indigo-500 text-white text-sm font-semibold rounded-2xl transition-all cursor-none shadow-xl shadow-indigo-600/25 disabled:opacity-75 disabled:hover:scale-100 disabled:cursor-not-allowed hover:scale-[1.01] active:scale-95"
               >
-                Send Message <Send className="w-4 h-4" />
+                {status === "loading" ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />{" "}
+                    Sending...
+                  </>
+                ) : status === "success" ? (
+                  <>
+                    <CheckCircle2 className="w-4 h-4" /> Message Delivered
+                  </>
+                ) : (
+                  <>
+                    Send Message <Send className="w-4 h-4" />
+                  </>
+                )}
               </button>
             </form>
           </div>
@@ -328,7 +399,6 @@ export default function Landing() {
               Placify<span className="text-indigo-500">.</span>
             </span>
           </div>
-
           <div className="flex flex-wrap justify-center gap-6 sm:gap-8 text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400">
             <a
               href="#"
@@ -349,7 +419,6 @@ export default function Landing() {
               Terms of Service
             </a>
           </div>
-
           <div className="text-xs sm:text-sm font-mono text-slate-400 dark:text-slate-500">
             &copy; {currentYear} Placify Inc. All rights reserved.
           </div>

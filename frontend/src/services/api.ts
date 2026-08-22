@@ -1,6 +1,52 @@
 // src/services/api.ts
 
 // ==========================================
+// 0. AUTHENTICATION (MongoDB)
+// ==========================================
+export const API_URL = "http://localhost:8000/api";
+
+export async function loginUser(credentials: any) {
+  const response = await fetch(`${API_URL}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(credentials),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Login failed");
+  }
+
+  return response.json();
+}
+
+export async function requestOtpLogin(email: string) {
+  const response = await fetch(`${API_URL}/auth/request-otp`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || "Failed to request OTP");
+  }
+  return response.json();
+}
+
+export async function verifyOtpLogin(email: string, otp: string) {
+  const response = await fetch(`${API_URL}/auth/verify-otp`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, otp }),
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || "Invalid or expired OTP");
+  }
+  return response.json();
+}
+
+// ==========================================
 // 1. JD ANALYZER AGENT
 // ==========================================
 export interface JDAnalysisResponse {

@@ -1,24 +1,68 @@
 // src/pages/Login.tsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Mail, ArrowLeft, ArrowRight, ShieldCheck } from "lucide-react";
+import {
+  Mail,
+  ArrowLeft,
+  ArrowRight,
+  ShieldCheck,
+  Lock,
+  CheckCircle2,
+} from "lucide-react";
 import { Logo } from "../components/ui/Logo";
 // @ts-expect-error -- ThemeToggle is a JS module without TypeScript declarations
 import ThemeToggle from "../components/ui/ThemeToggle";
 import { cn } from "../utils/cn";
+import { loginUser } from "../services/api";
 
 type Role = "ADMIN" | "STUDENT" | "PANELIST";
 
 export default function Login() {
   const [selectedRole, setSelectedRole] = useState<Role>("ADMIN");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState("admin@placify.com");
+  const [password, setPassword] = useState("");
+  const [status, setStatus] = useState<
+    "idle" | "loading" | "error" | "success"
+  >("idle");
+  const [errorMessage, setErrorMessage] = useState("");
   const navigate = useNavigate();
 
-  const handleLogin = (e: React.FormEvent) => {
+  // Smart auto-fill for email only; password must be entered manually for security demo
+  useEffect(() => {
+    if (selectedRole === "ADMIN") setEmail("admin@placify.com");
+    if (selectedRole === "STUDENT") setEmail("student@placify.com");
+    if (selectedRole === "PANELIST") setEmail("panelist@placify.com");
+
+    setPassword("");
+    setStatus("idle");
+    setErrorMessage("");
+  }, [selectedRole]);
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (selectedRole === "ADMIN") navigate("/admin");
-    if (selectedRole === "STUDENT") navigate("/student");
-    if (selectedRole === "PANELIST") navigate("/panelist");
+    setStatus("loading");
+    setErrorMessage("");
+
+    try {
+      // 1. Authenticate securely against MongoDB
+      const data = await loginUser({ email, password });
+
+      // 2. Store the secure JWT token
+      localStorage.setItem("placify_token", data.access_token);
+      localStorage.setItem("placify_user", JSON.stringify(data.user));
+
+      setStatus("success");
+
+      // 3. Dynamically route based on the TRUE role returned from the database
+      setTimeout(() => {
+        if (data.user.role === "admin") navigate("/admin");
+        else if (data.user.role === "panelist") navigate("/panelist");
+        else navigate("/student");
+      }, 800);
+    } catch (error: any) {
+      setStatus("error");
+      setErrorMessage(error.message);
+    }
   };
 
   return (
@@ -32,7 +76,7 @@ export default function Login() {
       {/* Back to Home Button */}
       <Link
         to="/"
-        className="absolute top-5 left-5 sm:top-8 sm:left-8 flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300 bg-white/80 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-full backdrop-blur-2xl hover:bg-slate-50 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white transition-all duration-300 cursor-none shadow-sm z-20 group"
+        className="absolute top-5 left-5 sm:top-8 sm:left-8 flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300 bg-white/80 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-full backdrop-blur-2xl hover:bg-slate-50 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white transition-all duration-300 cursor-pointer shadow-sm z-20 group"
       >
         <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 group-hover:-translate-x-1 transition-transform" />
         Home
@@ -62,12 +106,12 @@ export default function Login() {
           <form
             onSubmit={handleLogin}
             className="space-y-6 relative z-10"
-            aria-label="Single Sign-On Form"
+            aria-label="Secure Sign-In Form"
           >
             {/* Role Selection */}
             <fieldset className="space-y-3">
               <legend className="text-sm font-semibold text-slate-900 dark:text-white mb-3">
-                Select your role
+                Select profile
               </legend>
               <div
                 className="grid grid-cols-3 gap-3"
@@ -82,7 +126,7 @@ export default function Login() {
                     aria-checked={selectedRole === role}
                     onClick={() => setSelectedRole(role)}
                     className={cn(
-                      "py-2.5 px-2 text-[11px] sm:text-xs font-semibold rounded-xl border transition-all duration-200 cursor-none focus:outline-none focus:ring-2 focus:ring-indigo-500",
+                      "py-2.5 px-2 text-[11px] sm:text-xs font-semibold rounded-xl border transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500",
                       selectedRole === role
                         ? "bg-indigo-50 dark:bg-indigo-500/10 border-indigo-500/50 dark:border-indigo-500/50 text-indigo-600 dark:text-indigo-400 shadow-sm"
                         : "bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10",
@@ -96,14 +140,8 @@ export default function Login() {
               </div>
             </fieldset>
 
-            {/* Email Input */}
-            <div className="space-y-2 pt-2">
-              <label
-                htmlFor="email"
-                className="block text-sm font-semibold text-slate-900 dark:text-white"
-              >
-                Institutional Email
-              </label>
+            {/* Credential Inputs */}
+            <div className="space-y-4 pt-2">
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                   <Mail className="h-5 w-5 text-slate-400" aria-hidden="true" />
@@ -115,24 +153,61 @@ export default function Login() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="name@university.edu"
-                  className="w-full pl-11 pr-4 py-3.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all cursor-none shadow-sm"
+                  className="w-full pl-11 pr-4 py-3.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all cursor-text shadow-sm"
                   aria-required="true"
+                  disabled={status === "loading" || status === "success"}
+                />
+              </div>
+
+              {/* Password Input (Requires manual entry now) */}
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <Lock className="h-5 w-5 text-slate-400" aria-hidden="true" />
+                </div>
+                <input
+                  type="password"
+                  id="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Password"
+                  className="w-full pl-11 pr-4 py-3.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all cursor-text shadow-sm"
+                  aria-required="true"
+                  disabled={status === "loading" || status === "success"}
                 />
               </div>
             </div>
 
+            {/* Error Message */}
+            {status === "error" && (
+              <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 text-sm font-semibold rounded-xl text-center">
+                {errorMessage}
+              </div>
+            )}
+
             {/* Relevant Security Badge */}
             <div className="flex items-center justify-center gap-2 mt-4 text-emerald-600 dark:text-emerald-400 text-xs font-medium bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 py-2.5 rounded-xl">
               <ShieldCheck className="w-4 h-4" />
-              Enterprise SSO Enforced
+              Enterprise Auth Enforced
             </div>
 
             <button
               type="submit"
-              className="w-full flex items-center justify-center gap-2 py-3.5 px-6 mt-4 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-2xl hover:scale-[1.01] active:scale-95 transition-all cursor-none shadow-xl shadow-indigo-600/25 group"
+              disabled={status === "loading" || status === "success"}
+              className="w-full flex items-center justify-center gap-2 py-3.5 px-6 mt-4 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-2xl hover:scale-[1.01] active:scale-95 transition-all cursor-pointer shadow-xl shadow-indigo-600/25 group disabled:opacity-75 disabled:hover:scale-100"
             >
-              Continue with SSO
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              {status === "loading" ? (
+                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : status === "success" ? (
+                <>
+                  <CheckCircle2 className="w-4 h-4" /> Authenticated
+                </>
+              ) : (
+                <>
+                  Secure Sign In
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </>
+              )}
             </button>
           </form>
         </div>
