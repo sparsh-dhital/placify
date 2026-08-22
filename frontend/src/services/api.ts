@@ -40,7 +40,6 @@ export async function verifyOtpLogin(email: string, otp: string) {
     throw new Error((await response.json()).detail || "Invalid or expired OTP");
   return response.json();
 }
-// src/services/api.ts
 
 export const sendChatMessage = async (
   userId: string,
@@ -60,6 +59,35 @@ export const sendChatMessage = async (
         `Server error: ${response.status} ${response.statusText}`,
     );
   }
+  return response.json();
+};
+
+export const getChatHistory = async (userId: string) => {
+  const response = await fetch(
+    `${API_URL}/chat/history?user_id=${encodeURIComponent(userId)}`,
+  );
+  if (!response.ok) throw new Error("Failed to fetch chat history");
+  return response.json();
+};
+
+export const deleteChatMessage = async (messageId: string) => {
+  const response = await fetch(`${API_URL}/chat/delete-message`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message_id: messageId }),
+  });
+  if (!response.ok) throw new Error("Failed to delete message from database");
+  return response.json();
+};
+
+export const clearChatHistory = async (userId: string) => {
+  const response = await fetch(`${API_URL}/chat/clear`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ user_id: userId }),
+  });
+  if (!response.ok)
+    throw new Error("Failed to clear chat history from database");
   return response.json();
 };
 
@@ -638,7 +666,6 @@ const extractTextFromPdf = async (file: File): Promise<string> => {
   const textLayer = pages.join("\n").trim();
   if (textLayer.length >= 40) return textLayer;
 
-  // Scanned resumes have no text layer, so render each page and run OCR.
   const ocrPages: string[] = [];
   for (let i = 1; i <= pdf.numPages; i += 1) {
     const page = await pdf.getPage(i);
