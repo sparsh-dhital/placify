@@ -62,7 +62,7 @@ async def request_otp(request: OTPRequest):
     )
     
     print(f"\n=======================================")
-    print(f"🔑 MOCKED OTP FOR {request.email}: {otp_code}")
+    print(f"[OTP KEY] MOCKED OTP FOR {request.email}: {otp_code}")
     print(f"=======================================\n")
     
     return {"success": True, "message": "OTP Generated", "mock_otp": otp_code}
@@ -93,4 +93,4 @@ async def seed_users():
         {"name": "Demo Panelist", "email": "panelist@placify.com", "password": get_password_hash("password123"), "role": "panelist"}
     ]
     await db.users.insert_many(test_users)
-    return {"message": "✅ Created test accounts!"}
+    return {"message": "[SUCCESS] Created test accounts!"}

@@ -20,35 +20,33 @@ from app.api.routes_panel import router as app_panel_router
 from app.api.routes_student import router as student_router
 
 app = FastAPI(title="Placify API", version="1.0.0")
-app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+
+# Enable CORS for frontend communication
+app.add_middleware(
+    CORSMiddleware, 
+    allow_origins=["http://localhost:5173", "http://localhost:3000"], 
+    allow_credentials=True, 
+    allow_methods=["*"], 
+    allow_headers=["*"]
+)
+
 app.include_router(admin_router, prefix="/api/admin", tags=["admin"])
 app.include_router(app_panel_router, prefix="/api/panel", tags=["panel"])
 app.include_router(student_router, prefix="/api/student", tags=["student"])
+app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
+app.include_router(panel.router, prefix="/api/panel", tags=["Panelist Operations"])
+app.include_router(chat.router, prefix="/api/chat", tags=["AI Critic Agent"])
 
-# Startup Event to confirm MongoDB connection
+# Startup Event to confirm MongoDB connection (EMOJIS REMOVED TO PREVENT WINDOWS TERMINAL CRASH)
 @app.on_event("startup")
 async def startup_db_check():
     try:
         await db.client.admin.command('ping')
         print("\n=======================================")
-        print("✅ Successfully connected to MongoDB!")
+        print("[SUCCESS] Successfully connected to MongoDB!")
         print("=======================================\n")
     except Exception as e:
-        print(f"\n❌ MongoDB Connection Failed: {e}\n")
-
-# Enable CORS for frontend communication
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"], 
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Register API Routers
-app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
-app.include_router(panel.router, prefix="/api/panel", tags=["Panelist Operations"])
-app.include_router(chat.router, prefix="/api/chat", tags=["AI Critic Agent"])
+        print(f"\n[FAILED] MongoDB Connection Failed: {e}\n")
 
 class ContactForm(BaseModel):
     name: str
@@ -137,6 +135,7 @@ async def parse_student_resume(file: UploadFile = File(...)):
         "parsed": {"skills": ["Python", "SQL", "React"]}, 
         "missing_skills": ["Docker"]
     }
+
 @app.get("/health")
 def health() -> dict[str, str]:
-	return {"status": "ok", "service": "placify"}
+    return {"status": "ok", "service": "placify"}

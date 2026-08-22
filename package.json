@@ -1,0 +1,17 @@
+{
+  "name": "placify",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start:frontend": "cd frontend && npm run dev",
+    "start:backend": "cd backend && uvicorn main:app --reload",
+    "dev": "concurrently -c \"cyan,magenta\" -n \"REACT,FASTAPI\" \"npm run start:frontend\" \"npm run start:backend\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "Placify Fullstack Application",
+  "devDependencies": {
+    "concurrently": "^10.0.5"
+  }
+}

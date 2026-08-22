@@ -58,17 +58,21 @@ export function AICritic() {
       {isOpen && (
         <div
           role="dialog"
-          aria-label="AI Critic Chat"
-          className="mb-4 w-[340px] sm:w-[400px] h-[500px] flex flex-col bg-white/90 dark:bg-[#0A0A12]/90 backdrop-blur-2xl border border-slate-200 dark:border-white/10 rounded-3xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-10 fade-in duration-300"
+          aria-labelledby="ai-critic-title"
+          data-lenis-prevent
+          className="mb-4 w-[360px] sm:w-[420px] h-[520px] max-h-[calc(100vh-100px)] flex flex-col bg-white/90 dark:bg-[#0A0A12]/95 backdrop-blur-3xl border border-slate-200 dark:border-white/10 rounded-[2rem] shadow-2xl shadow-indigo-500/10 overflow-hidden animate-in slide-in-from-bottom-10 fade-in duration-300"
         >
           {/* Header */}
-          <div className="px-5 py-4 border-b border-slate-200 dark:border-white/10 bg-indigo-600 dark:bg-[#1E1B4B] flex justify-between items-center text-white">
+          <header className="p-4 sm:px-6 border-b border-white/10 bg-[#05050A]/90 flex justify-between items-center text-white shrink-0">
             <div className="flex items-center gap-2">
               <BrainCircuit className="w-5 h-5 text-indigo-200" />
               <div>
-                <h3 className="text-sm font-bold tracking-tight">
+                <h2
+                  id="ai-critic-title"
+                  className="text-sm font-bold tracking-tight"
+                >
                   Placify AI Critic
-                </h3>
+                </h2>
                 <p className="text-[10px] text-indigo-200 uppercase tracking-wider font-semibold">
                   Live DB Analysis Active
                 </p>
@@ -76,15 +80,22 @@ export function AICritic() {
             </div>
             <button
               onClick={() => setIsOpen(false)}
+              type="button"
               className="p-1 hover:bg-white/20 rounded-lg transition-colors cursor-pointer"
               aria-label="Close chat"
             >
               <X className="w-5 h-5" />
             </button>
-          </div>
+          </header>
 
           {/* Messages Area */}
-          <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          <section
+            className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-6 scroll-smooth overscroll-contain"
+            role="log"
+            aria-live="polite"
+            aria-busy={isTyping}
+            aria-label="Conversation messages"
+          >
             {chatHistory.map((chat, idx) => (
               <div
                 key={idx}
@@ -108,7 +119,11 @@ export function AICritic() {
 
             {isTyping && (
               <div className="flex justify-start w-full">
-                <div className="bg-slate-100 dark:bg-white/10 p-4 rounded-2xl rounded-bl-none border border-slate-200 dark:border-white/5 flex gap-1">
+                <div
+                  role="status"
+                  aria-label="Assistant is typing"
+                  className="bg-slate-100 dark:bg-white/10 p-4 rounded-2xl rounded-bl-none border border-slate-200 dark:border-white/5 flex gap-1"
+                >
                   <span
                     className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce"
                     style={{ animationDelay: "0ms" }}
@@ -125,10 +140,10 @@ export function AICritic() {
               </div>
             )}
             <div ref={messagesEndRef} />
-          </div>
+          </section>
 
           {/* Input Area */}
-          <div className="p-4 border-t border-slate-200 dark:border-white/10 bg-white/50 dark:bg-black/20">
+          <footer className="shrink-0 p-4 sm:p-5 border-t border-slate-200 dark:border-white/10 bg-white/50 dark:bg-black/20">
             <form onSubmit={handleSend} className="flex gap-2">
               <input
                 type="text"
@@ -146,7 +161,7 @@ export function AICritic() {
                 <Send className="w-4 h-4" />
               </button>
             </form>
-          </div>
+          </footer>
         </div>
       )}
 
