@@ -39,7 +39,7 @@ const studentNavItems = [
   { name: "Skill Readiness", path: "/student/readiness", icon: BarChart3 },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ onCloseMobile }: { onCloseMobile?: () => void }) {
   const location = useLocation();
   const isStudent = location.pathname.startsWith("/student");
   const visibleNavItems = isStudent ? studentNavItems : navItems;
@@ -75,6 +75,7 @@ export default function Sidebar() {
             <Link
               key={item.name}
               to={item.path}
+              onClick={onCloseMobile}
               aria-current={isActive ? "page" : undefined}
               className={clsx(
                 "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 cursor-none focus:outline-none focus:ring-2 focus:ring-indigo-500",

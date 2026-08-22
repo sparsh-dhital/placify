@@ -1,3 +1,22 @@
+export const API_URL = "http://localhost:8000/api";
+
+export async function loginUser(credentials: { email: string; password: string }) {
+  const response = await fetch(`${API_URL}/auth/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(credentials) });
+  if (!response.ok) throw new Error((await response.json()).detail || "Login failed");
+  return response.json();
+}
+
+export async function requestOtpLogin(email: string) {
+  const response = await fetch(`${API_URL}/auth/request-otp`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email }) });
+  if (!response.ok) throw new Error((await response.json()).detail || "Failed to request OTP");
+  return response.json();
+}
+
+export async function verifyOtpLogin(email: string, otp: string) {
+  const response = await fetch(`${API_URL}/auth/verify-otp`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, otp }) });
+  if (!response.ok) throw new Error((await response.json()).detail || "Invalid or expired OTP");
+  return response.json();
+}
 // src/services/api.ts
 
 // ==========================================
