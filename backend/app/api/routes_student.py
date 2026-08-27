@@ -1,56 +1,108 @@
 # backend/app/api/routes_student.py
 from fastapi import APIRouter, HTTPException, Depends
-from app.core.db import STUDENTS, JOBS
+from pydantic import BaseModel
+from database import db
 from app.agents.match_agent import match_candidates
 from app.core.security import get_current_student
 
 router = APIRouter()
 
+class ResumeSyncPayload(BaseModel):
+    cgpa: float | None = None
+    skills: list[str] = []
+    readiness_score: int = 0
+
 @router.get("/dashboard")
-def dashboard(student: dict = Depends(get_current_student)):
-    # Securely extract the ID from the token, not the URL
+async def dashboard(student: dict = Depends(get_current_student)):
     student_id = student["id"]
     
-    # Fallback to the first student in the mock array if the ID isn't found during testing
-    student_record = next((s for s in STUDENTS if s["student_id"] == student_id), STUDENTS[0])
+    # Normal Flow: Fetch from MongoDB
+    student_record = await db.db["students"].find_one({"student_id": student_id})
+    
+    # Edge Case: Profile missing? Auto-recover using verified JWT Auth data
+    if not student_record:
+        student_record = {
+            "student_id": student_id,
+            "name": student.get("name"),   # Exact name from login payload
+            "email": student.get("email"), # Exact email from login payload
+            "branch": "CSE",
+            "cgpa": 0.0,
+            "skills": [],
+            "shortlist_status": "pending"
+        }
+        await db.db["students"].insert_one(student_record)
         
-    job = JOBS.get("20000000-0000-0000-0000-000000000001")
+    job = await db.db["jobs"].find_one({"status": "active"})
     if not job:
-        raise HTTPException(status_code=404, detail="Active job not found")
+        return {
+            "success": True, 
+            "profile": {
+                "name": student_record.get("name", "Student"), 
+                "roll_no": f"2026{student_record.get('branch', 'CSE')}001", 
+                "branch": student_record.get("branch", "CSE"),
+                "cgpa": student_record.get("cgpa", 0.0), 
+                "readiness_score": 0
+            }, 
+            "upcoming_interview": None, 
+            "job_matches": [], 
+            "ai_recommendations": ["No active recruitment drives found in the database.", "Keep your skills updated!"]
+        }
         
     match_data = match_candidates(job, [student_record])
-    result = match_data["matches"][0] if match_data["matches"] else None
-    
-    if not result:
-        raise HTTPException(status_code=500, detail="Match generation failed")
+    result = match_data["matches"][0] if match_data.get("matches") else {
+        "match_score": 0, "matched_skills": [], "missing_skills": [], "explanation": "Profile evaluation pending."
+    }
+        
+    upcoming = await db.db["interviews"].find_one({"student_id": student_id, "status": "proposed"})
 
     return {
         "success": True, 
         "profile": {
-            "name": student_record["name"], 
-            "roll_no": f"2026{student_record['branch']}001", 
-            "branch": student_record["branch"],
-            "cgpa": student_record["cgpa"], 
-            "readiness_score": result["match_score"]
+            "name": student_record.get("name", "Student"), 
+            "roll_no": f"2026{student_record.get('branch', 'CSE')}001", 
+            "branch": student_record.get("branch", "CSE"),
+            "cgpa": student_record.get("cgpa", 0.0), 
+            "readiness_score": result.get("match_score", 0)
         }, 
         "upcoming_interview": {
-            "company": job["company"],
-            "role": job["role"],
-            "date": "Tomorrow",
-            "time": "10:00 AM",
-            "room": "Room 101",
-            "panel": "Technical Panel A",
-            "status": "Confirmed"
-        }, 
+            "company": job.get("company", "Unknown"),
+            "role": job.get("role", "Role"),
+            "date": upcoming.get("start_time", "TBD").split("T")[0] if upcoming else "TBD",
+            "time": upcoming.get("start_time", "TBD").split("T")[-1] if upcoming else "TBD",
+            "room": upcoming.get("room", "TBD") if upcoming else "TBD",
+            "panel": upcoming.get("panel", "TBD") if upcoming else "TBD",
+            "status": "Confirmed" if upcoming else "Pending"
+        } if upcoming else None, 
         "job_matches": [{
-            "company": job["company"],
-            "role": job["role"],
-            "match_score": result["match_score"],
-            "matched_skills": result["matched_skills"],
-            "missing_skills": result["missing_skills"]
+            "company": job.get("company"),
+            "role": job.get("role"),
+            "match_score": result.get("match_score", 0),
+            "matched_skills": result.get("matched_skills", []),
+            "missing_skills": result.get("missing_skills", [])
         }], 
         "ai_recommendations": [
-            result["explanation"],
-            f"Focus on acquiring missing skills: {', '.join(result['missing_skills'])}" if result["missing_skills"] else "Profile is highly optimized. Review core technical concepts."
+            result.get("explanation", ""),
+            f"Focus on acquiring missing skills: {', '.join(result.get('missing_skills', []))}" if result.get("missing_skills") else "Profile is highly optimized."
         ]
+    }
+
+@router.post("/sync-resume")
+async def sync_resume_data(payload: ResumeSyncPayload, student: dict = Depends(get_current_student)):
+    student_id = student["id"]
+    
+    update_data = {
+        "skills": payload.skills,
+    }
+    if payload.cgpa is not None:
+        update_data["cgpa"] = payload.cgpa
+
+    await db.db["students"].update_one(
+        {"student_id": student_id},
+        {"$set": update_data},
+        upsert=True
+    )
+    
+    return {
+        "success": True, 
+        "message": "Resume data permanently synced to MongoDB profile!"
     }

@@ -1,5 +1,5 @@
 // src/pages/Login.tsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, ArrowRight, CheckCircle2, HelpCircle } from "lucide-react";
 import { Logo } from "../components/ui/Logo";
@@ -12,6 +12,7 @@ import {
   verifySignupOtp,
   requestPasswordResetOtp,
   resetPassword,
+  verifyOAuthCode,
 } from "../services/api";
 
 type ViewState = "login" | "signup" | "forgot" | "otp";
@@ -40,10 +41,35 @@ export default function Login() {
 
   const [pendingLoginData, setPendingLoginData] = useState<any>(null);
 
+  // --- OAUTH CALLBACK INTERCEPTOR (With Ref Guard to Prevent StrictMode Double-Firing) ---
+  const oauthProcessedRef = useRef(false);
+
   useEffect(() => {
-    setStatus("idle");
-    setErrorMessage("");
-    setOtpCode("");
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+    const state = params.get("state");
+
+    if (code && state && !oauthProcessedRef.current) {
+      oauthProcessedRef.current = true;
+      const [oauthRole, provider] = state.split("_");
+      setStatus("loading");
+
+      verifyOAuthCode(code, provider, oauthRole)
+        .then(handleRouteSuccess)
+        .catch((err: any) => {
+          setStatus("error");
+          setErrorMessage(err.message || "Authentication cancelled or failed.");
+          window.history.replaceState({}, document.title, "/login");
+        });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!window.location.search.includes("code=")) {
+      setStatus("idle");
+      setErrorMessage("");
+      setOtpCode("");
+    }
   }, [view]);
 
   useEffect(() => {
@@ -73,6 +99,9 @@ export default function Login() {
     localStorage.setItem("placify_token", data.access_token);
     localStorage.setItem("placify_user", JSON.stringify(data.user));
     setStatus("success");
+
+    window.history.replaceState({}, document.title, "/login");
+
     setTimeout(() => {
       if (data.user.role === "admin") navigate("/admin");
       else if (data.user.role === "panelist") navigate("/panelist");
@@ -100,17 +129,19 @@ export default function Login() {
 
   const handleSocialLogin = (provider: "Google" | "GitHub") => {
     setStatus("loading");
-    setTimeout(() => {
-      const mockData = {
-        access_token: `mock_oauth_token_${provider.toLowerCase()}`,
-        user: {
-          name: "OAuth User",
-          email: "oauth@placify.com",
-          role: role.toLowerCase(),
-        },
-      };
-      handleRouteSuccess(mockData);
-    }, 1200);
+
+    const redirectUri = encodeURIComponent("http://localhost:5173/login");
+    const state = `${role.toLowerCase()}_${provider.toLowerCase()}`;
+
+    if (provider === "Google") {
+      const clientId =
+        import.meta.env.VITE_GOOGLE_CLIENT_ID || "YOUR_GOOGLE_CLIENT_ID";
+      window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=email%20profile&state=${state}`;
+    } else {
+      const clientId =
+        import.meta.env.VITE_GITHUB_CLIENT_ID || "YOUR_GITHUB_CLIENT_ID";
+      window.location.href = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=user:email&state=${state}`;
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -175,16 +206,13 @@ export default function Login() {
       className="min-h-screen flex flex-col selection:bg-indigo-500 selection:text-white relative bg-[#FAFAFA] dark:bg-[#05050A] text-slate-900 dark:text-slate-100 transition-colors duration-500 font-sans overflow-x-hidden"
       role="main"
     >
-      {/* Ambient Glow Header */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[350px] bg-gradient-to-b from-indigo-500/10 via-cyan-500/5 to-transparent blur-[120px] pointer-events-none rounded-full hidden dark:block" />
 
-      {/* Professional SaaS Top Navigation Bar */}
       <nav className="w-full flex items-center justify-between px-6 sm:px-10 py-4 border-b border-slate-200/80 dark:border-white/10 bg-white/80 dark:bg-[#05050A]/80 backdrop-blur-2xl sticky top-0 z-50 transition-colors shadow-sm">
-        {/* Styled exactly like the Get Started landing page button */}
         <Link
           to="/"
           aria-label="Return to homepage"
-          className="group relative inline-flex items-center justify-center px-4 sm:px-5 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 dark:bg-indigo-600 dark:hover:bg-indigo-500 rounded-full overflow-hidden transition-all duration-300 hover:scale-[1.03] active:scale-95 shadow-lg shadow-indigo-600/25 shrink-0 cursor-none"
+          className="group relative inline-flex items-center justify-center px-4 sm:px-5 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 dark:bg-indigo-600 dark:hover:bg-indigo-500 rounded-full overflow-hidden transition-all duration-300 hover:scale-[1.03] active:scale-95 shadow-lg shadow-indigo-600/25 shrink-0"
         >
           <span className="relative flex items-center gap-1.5">
             <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 group-hover:-translate-x-1 transition-transform" />
@@ -196,10 +224,8 @@ export default function Login() {
         </div>
       </nav>
 
-      {/* Centered Content Container */}
       <div className="flex-1 flex flex-col items-center justify-center px-4 py-12 relative z-10">
         <div className="w-full max-w-[420px]">
-          {/* Header Section */}
           <header className="flex flex-col items-center mb-8 text-center animate-in fade-in slide-in-from-bottom-4 duration-500">
             <Logo
               className="w-12 h-12 mb-4 shadow-md border border-slate-200/50 dark:border-white/5"
@@ -220,7 +246,6 @@ export default function Login() {
             </p>
           </header>
 
-          {/* Main Clean Card */}
           <div className="bg-white dark:bg-[#0A0A12] border border-slate-200 dark:border-white/10 rounded-[2rem] p-6 sm:p-8 shadow-xl shadow-slate-900/5 relative overflow-hidden animate-in fade-in zoom-in-95 duration-500">
             <form
               onSubmit={handleSubmit}
@@ -231,7 +256,6 @@ export default function Login() {
                 Authentication Form
               </h2>
 
-              {/* SEMANTIC WORKSPACE ROLE SELECTOR */}
               {view !== "otp" && view !== "forgot" && (
                 <fieldset className="space-y-2 animate-in fade-in">
                   <legend className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
@@ -268,7 +292,6 @@ export default function Login() {
                 </fieldset>
               )}
 
-              {/* OTP VERIFICATION VIEW */}
               {view === "otp" ? (
                 <div className="space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
                   <label
@@ -295,7 +318,6 @@ export default function Login() {
                   />
                 </div>
               ) : (
-                /* STANDARD FORM FIELDS WITH LABELS (NO ICONS) */
                 <div className="space-y-4">
                   {view === "signup" && (
                     <div className="space-y-1.5 animate-in fade-in zoom-in-95 duration-300">
@@ -360,7 +382,6 @@ export default function Login() {
                 </div>
               )}
 
-              {/* WAI-ARIA Live Region for Errors/Success Messages */}
               <div aria-live="polite" className="empty:hidden">
                 {status === "error" && (
                   <div className="p-3 mt-1 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400 text-xs font-semibold rounded-xl text-center animate-in fade-in">
@@ -376,7 +397,6 @@ export default function Login() {
                   )}
               </div>
 
-              {/* Primary Action Button */}
               <button
                 type="submit"
                 disabled={
@@ -416,7 +436,6 @@ export default function Login() {
                 )}
               </button>
 
-              {/* OAUTH BYPASS */}
               {(view === "login" || view === "signup") && (
                 <div className="pt-2 animate-in fade-in duration-500">
                   <div className="flex items-center gap-3 my-4">
@@ -470,7 +489,6 @@ export default function Login() {
               )}
             </form>
 
-            {/* VIEW TOGGLES */}
             <footer className="mt-6 pt-4 border-t border-slate-100 dark:border-white/5 flex flex-col items-center gap-2">
               {view === "login" && (
                 <>
@@ -519,7 +537,6 @@ export default function Login() {
             </footer>
           </div>
 
-          {/* Global Support Link */}
           <div className="flex items-center justify-center gap-2 mt-6">
             <HelpCircle className="w-3.5 h-3.5 text-slate-400" />
             <a

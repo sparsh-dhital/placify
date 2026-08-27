@@ -63,7 +63,7 @@ async def handle_contact_form(form: ContactForm):
         # Sends a beautifully styled HTML email via Resend
         params = {
             "from": "Placify Operations <onboarding@resend.dev>",
-            "to": ["251fa04i95.sparsh@gmail.com"],
+            "to": ["251fa04i95@vignan.ac.in"],
             "subject": f"✨ New Inquiry from {form.name} — Placify Console",
             "html": f"""
                 <div style="background-color: #0f172a; padding: 40px 20px; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">

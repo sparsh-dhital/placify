@@ -2,26 +2,19 @@
 
 export const API_URL = "http://localhost:8000/api";
 
-// ==========================================
-// SECURITY HELPER: Auto-inject JWT Tokens
-// ==========================================
 const fetchWithAuth = async (endpoint: string, options: RequestInit = {}) => {
   const token = localStorage.getItem("placify_token");
-
   const headers = {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...options.headers,
   };
-
   const response = await fetch(`${API_URL}${endpoint}`, {
     ...options,
     headers,
   });
-
   if (!response.ok) {
     if (response.status === 401 || response.status === 403) {
-      // Token is invalid/expired. Clear it and force the user back to login.
       localStorage.removeItem("placify_token");
       localStorage.removeItem("placify_user");
       window.location.href = "/login";
@@ -29,13 +22,9 @@ const fetchWithAuth = async (endpoint: string, options: RequestInit = {}) => {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.detail || `Server error: ${response.status}`);
   }
-
   return response.json();
 };
 
-// ==========================================
-// 0. AUTHENTICATION (Unprotected Routes)
-// ==========================================
 export async function loginUser(credentials: {
   email: string;
   password: string;
@@ -49,7 +38,6 @@ export async function loginUser(credentials: {
     throw new Error((await response.json()).detail || "Login failed");
   return response.json();
 }
-
 export async function requestSignupOtp(email: string) {
   const response = await fetch(`${API_URL}/auth/signup/request-otp`, {
     method: "POST",
@@ -60,7 +48,6 @@ export async function requestSignupOtp(email: string) {
     throw new Error((await response.json()).detail || "Failed to send code");
   return response.json();
 }
-
 export async function verifySignupOtp(data: any) {
   const response = await fetch(`${API_URL}/auth/signup/verify`, {
     method: "POST",
@@ -73,7 +60,6 @@ export async function verifySignupOtp(data: any) {
     );
   return response.json();
 }
-
 export async function requestPasswordResetOtp(email: string) {
   const response = await fetch(`${API_URL}/auth/forgot-password/request-otp`, {
     method: "POST",
@@ -86,7 +72,6 @@ export async function requestPasswordResetOtp(email: string) {
     );
   return response.json();
 }
-
 export async function resetPassword(data: any) {
   const response = await fetch(`${API_URL}/auth/forgot-password/reset`, {
     method: "POST",
@@ -99,42 +84,45 @@ export async function resetPassword(data: any) {
     );
   return response.json();
 }
+export async function verifyOAuthCode(
+  code: string,
+  provider: string,
+  role: string,
+) {
+  const response = await fetch(`${API_URL}/auth/oauth/callback`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code, provider, role }),
+  });
+  if (!response.ok)
+    throw new Error(
+      (await response.json()).detail || "OAuth verification failed",
+    );
+  return response.json();
+}
 
-// ==========================================
-// 1. AI CHAT ASSISTANT (Protected)
-// ==========================================
 export const sendChatMessage = async (
   userId: string,
   role: string,
   message: string,
-) => {
-  return fetchWithAuth("/chat/analyze", {
+) =>
+  fetchWithAuth("/chat/analyze", {
     method: "POST",
     body: JSON.stringify({ user_id: userId, role, message }),
   });
-};
-
-export const getChatHistory = async (userId: string) => {
-  return fetchWithAuth(`/chat/history?user_id=${encodeURIComponent(userId)}`);
-};
-
-export const deleteChatMessage = async (messageId: string) => {
-  return fetchWithAuth("/chat/delete-message", {
+export const getChatHistory = async (userId: string) =>
+  fetchWithAuth(`/chat/history?user_id=${encodeURIComponent(userId)}`);
+export const deleteChatMessage = async (messageId: string) =>
+  fetchWithAuth("/chat/delete-message", {
     method: "POST",
     body: JSON.stringify({ message_id: messageId }),
   });
-};
-
-export const clearChatHistory = async (userId: string) => {
-  return fetchWithAuth("/chat/clear", {
+export const clearChatHistory = async (userId: string) =>
+  fetchWithAuth("/chat/clear", {
     method: "POST",
     body: JSON.stringify({ user_id: userId }),
   });
-};
 
-// ==========================================
-// 2. JD ANALYZER AGENT (Protected)
-// ==========================================
 export interface JDAnalysisResponse {
   success: boolean;
   company: string;
@@ -146,14 +134,11 @@ export interface JDAnalysisResponse {
   preferred_skills: string[];
   ai_confidence?: number;
 }
-
-export const analyzeJD = async (text: string): Promise<JDAnalysisResponse> => {
-  return fetchWithAuth("/admin/jd/analyze", {
+export const analyzeJD = async (text: string): Promise<JDAnalysisResponse> =>
+  fetchWithAuth("/admin/jd/analyze", {
     method: "POST",
     body: JSON.stringify({ text }),
   });
-};
-
 export const analyzeJDFile = async (
   file: File,
 ): Promise<JDAnalysisResponse> => {
@@ -166,9 +151,6 @@ export const analyzeJDFile = async (
   return analyzeJD(text);
 };
 
-// ==========================================
-// 3. ELIGIBILITY AGENT (Protected)
-// ==========================================
 export interface EligibilityResult {
   student_id: string;
   student_name: string;
@@ -189,19 +171,14 @@ export interface EligibilityResponse {
   ineligible_students: number;
   results: EligibilityResult[];
 }
-
 export const runEligibility = async (
   jobId: string,
-): Promise<EligibilityResponse> => {
-  return fetchWithAuth("/admin/eligibility/run", {
+): Promise<EligibilityResponse> =>
+  fetchWithAuth("/admin/eligibility/run", {
     method: "POST",
     body: JSON.stringify({ job_id: jobId }),
   });
-};
 
-// ==========================================
-// 4. MATCHMAKER AGENT (Protected)
-// ==========================================
 export interface MatchResult {
   student_id: string;
   student_name: string;
@@ -220,19 +197,12 @@ export interface MatchResponse {
   candidates_analyzed: number;
   matches: MatchResult[];
 }
-
-export const generateMatches = async (
-  jobId: string,
-): Promise<MatchResponse> => {
-  return fetchWithAuth("/admin/matches/generate", {
+export const generateMatches = async (jobId: string): Promise<MatchResponse> =>
+  fetchWithAuth("/admin/matches/generate", {
     method: "POST",
     body: JSON.stringify({ job_id: jobId }),
   });
-};
 
-// ==========================================
-// 5. SHORTLIST APPROVAL (Protected)
-// ==========================================
 export interface ShortlistDecision {
   student_id: string;
   action: "approve" | "reject";
@@ -244,20 +214,15 @@ export interface ShortlistSubmitResponse {
   approved_count: number;
   rejected_count: number;
 }
-
 export const submitShortlistApproval = async (
   jobId: string,
   decisions: ShortlistDecision[],
-): Promise<ShortlistSubmitResponse> => {
-  return fetchWithAuth("/admin/shortlist/approve", {
+): Promise<ShortlistSubmitResponse> =>
+  fetchWithAuth("/admin/shortlist/approve", {
     method: "POST",
     body: JSON.stringify({ job_id: jobId, decisions }),
   });
-};
 
-// ==========================================
-// 6. INTERVIEW SCHEDULER AGENT (Protected)
-// ==========================================
 export interface ScheduleItem {
   id: string;
   student: string;
@@ -280,19 +245,14 @@ export interface ScheduleResponse {
   conflict_detected: boolean;
   conflict_details?: ConflictDetails;
 }
-
 export const generateSchedule = async (
   jobId: string,
-): Promise<ScheduleResponse> => {
-  return fetchWithAuth("/admin/schedule/generate", {
+): Promise<ScheduleResponse> =>
+  fetchWithAuth("/admin/schedule/generate", {
     method: "POST",
     body: JSON.stringify({ job_id: jobId }),
   });
-};
 
-// ==========================================
-// 7. STUDENT DASHBOARD (Protected)
-// ==========================================
 export interface StudentProfile {
   name: string;
   roll_no: string;
@@ -323,17 +283,10 @@ export interface StudentDashboardResponse {
   job_matches: JobMatch[];
   ai_recommendations: string[];
 }
-
 export const getStudentDashboard =
-  async (): Promise<StudentDashboardResponse> => {
-    // We no longer need to pass studentId from the frontend;
-    // the backend extracts it securely from the JWT token via fetchWithAuth
-    return fetchWithAuth("/student/dashboard");
-  };
+  async (): Promise<StudentDashboardResponse> =>
+    fetchWithAuth("/student/dashboard");
 
-// ==========================================
-// 8. PANELIST DASHBOARD (Protected)
-// ==========================================
 export interface PanelCandidate {
   id: string;
   name: string;
@@ -364,24 +317,16 @@ export interface FeedbackPayload {
   overall_result: "pass" | "fail" | "hold" | "";
   comments: string;
 }
-
-export const getPanelInterviews = async (): Promise<PanelDashboardResponse> => {
-  // Panelist ID is extracted from JWT backend-side
-  return fetchWithAuth("/panel/today");
-};
-
+export const getPanelInterviews = async (): Promise<PanelDashboardResponse> =>
+  fetchWithAuth("/panel/today");
 export const submitInterviewFeedback = async (
   payload: FeedbackPayload,
-): Promise<{ success: boolean; message: string }> => {
-  return fetchWithAuth("/panel/feedback", {
+): Promise<{ success: boolean; message: string }> =>
+  fetchWithAuth("/panel/feedback", {
     method: "POST",
     body: JSON.stringify(payload),
   });
-};
 
-// ==========================================
-// 9. RESUME PARSER (Client-Side AI/OCR Engine)
-// ==========================================
 import * as pdfjsLib from "pdfjs-dist";
 import Tesseract from "tesseract.js";
 
@@ -414,30 +359,59 @@ export interface ResumeMatchResult {
   parsed: ParsedResumeData;
 }
 
+// Comprehensive Catalog to prevent regex hallucination
 const skillCatalog = [
   "Python",
   "Java",
   "C++",
+  "C#",
+  "Ruby",
+  "PHP",
   "JavaScript",
   "TypeScript",
   "React",
+  "Angular",
+  "Vue",
   "Node",
   "Node.js",
-  "SQL",
-  "MongoDB",
-  "Git",
-  "Docker",
-  "AWS",
-  "Machine Learning",
-  "Data Structures",
-  "Algorithms",
+  "Express",
   "Django",
   "Flask",
   "Spring",
-  "Express",
+  "Spring Boot",
+  "SQL",
+  "MySQL",
+  "PostgreSQL",
+  "MongoDB",
+  "Redis",
+  "Firebase",
+  "Git",
+  "GitHub",
+  "Docker",
+  "Kubernetes",
+  "AWS",
+  "Azure",
+  "GCP",
+  "Machine Learning",
+  "Data Structures",
+  "Algorithms",
   "Power BI",
   "Tableau",
   "Excel",
+  "HTML",
+  "CSS",
+  "Tailwind",
+  "Visualforce",
+  "Web Services",
+  "Troubleshooting",
+  "Adobe Photoshop",
+  "Adobe Illustrator",
+  "Adobe After Effects",
+  "Adobe InDesign",
+  "Adobe Premiere Pro",
+  "Facebook",
+  "Instagram",
+  "TikTok",
 ];
 
 const normalizeSkill = (skill: string) => {
@@ -461,7 +435,8 @@ const normalizeSkill = (skill: string) => {
   if (lower.includes("data structures") || lower.includes("dsa"))
     return "Data Structures";
   if (lower.includes("algorithm")) return "Algorithms";
-  if (lower.includes("git")) return "Git";
+  if (lower === "c++") return "C++";
+  if (lower.includes("git") && !lower.includes("github")) return "Git";
   if (lower.includes("mongodb") || lower.includes("mongo db")) return "MongoDB";
   return text;
 };
@@ -482,19 +457,67 @@ const recognizeCanvasText = async (canvas: HTMLCanvasElement) => {
   return cleanOcrText(result.data.text || "");
 };
 
+const extractTextFromImage = async (file: File): Promise<string> => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = async () => {
+      const canvas = document.createElement("canvas");
+      const scale = 2;
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+      const ctx = canvas.getContext("2d");
+
+      if (ctx) {
+        ctx.imageSmoothingEnabled = true;
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        try {
+          const text = await recognizeCanvasText(canvas);
+          resolve(text);
+        } catch {
+          const result = await Tesseract.recognize(file, "eng", {
+            logger: () => undefined,
+          });
+          resolve(cleanOcrText(result.data.text || ""));
+        }
+      } else {
+        const result = await Tesseract.recognize(file, "eng", {
+          logger: () => undefined,
+        });
+        resolve(cleanOcrText(result.data.text || ""));
+      }
+    };
+    img.onerror = async () => {
+      const result = await Tesseract.recognize(file, "eng", {
+        logger: () => undefined,
+      });
+      resolve(cleanOcrText(result.data.text || ""));
+    };
+    img.src = URL.createObjectURL(file);
+  });
+};
+
 const extractTextFromPdf = async (file: File): Promise<string> => {
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
   const pages: string[] = [];
+
   for (let i = 1; i <= pdf.numPages; i += 1) {
     const page = await pdf.getPage(i);
     const content = await page.getTextContent();
-    pages.push(
-      content.items.map((item) => ("str" in item ? item.str : "")).join(" "),
-    );
+    const pageText = content.items
+      .map((item) => ("str" in item ? item.str : ""))
+      .join(" ");
+    pages.push(pageText);
   }
+
   const textLayer = pages.join("\n").trim();
-  if (textLayer.length >= 40) return textLayer;
+  const hasValidEmail = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(
+    textLayer,
+  );
+  const hasGarbledEncoding = /[\ufffd]{2,}/.test(textLayer);
+
+  if (textLayer.length >= 40 && hasValidEmail && !hasGarbledEncoding)
+    return textLayer;
 
   const ocrPages: string[] = [];
   for (let i = 1; i <= pdf.numPages; i += 1) {
@@ -509,18 +532,40 @@ const extractTextFromPdf = async (file: File): Promise<string> => {
     const text = await recognizeCanvasText(canvas);
     if (text) ocrPages.push(text);
   }
-  return [textLayer, ...ocrPages].filter(Boolean).join("\n");
+
+  const cleanedOcr = ocrPages.filter(Boolean).join("\n");
+  return cleanedOcr.length > 20 ? cleanedOcr : textLayer;
 };
 
-const extractTextFromTextFile = async (file: File): Promise<string> =>
-  await file.text();
+const extractTextFromTextFile = async (file: File): Promise<string> => {
+  const text = await file.text();
+  const nonPrintableCount = (
+    text.match(/[\x00-\x08\x0B\x0C\x0E-\x1F\uFFFD]/g) || []
+  ).length;
+  if (text.length > 0 && nonPrintableCount / text.length > 0.05) {
+    throw new Error(
+      "Unsupported binary format detected. Please upload a standard PDF, Image, or plain text document.",
+    );
+  }
+  return text;
+};
 
 const resumeParsingAgent = async (file: File): Promise<string> => {
   const extension = file.name.split(".").pop()?.toLowerCase() || "";
   const fileType = file.type.toLowerCase();
+
   if (extension === "pdf" || fileType === "application/pdf")
     return extractTextFromPdf(file);
-  return extractTextFromTextFile(file);
+  if (
+    fileType.startsWith("image/") ||
+    ["png", "jpg", "jpeg", "webp"].includes(extension)
+  )
+    return extractTextFromImage(file);
+  if (fileType.startsWith("text/") || ["txt", "md", "csv"].includes(extension))
+    return extractTextFromTextFile(file);
+  throw new Error(
+    `The file extension (.${extension}) cannot be parsed. Please upload a PDF, Image, or plain text file.`,
+  );
 };
 
 const parseResumeText = (text: string): ParsedResumeData => {
@@ -532,53 +577,80 @@ const parseResumeText = (text: string): ParsedResumeData => {
   const phoneMatch = text.match(
     /(?:\+?\d{1,3}[-.\s]?)?(?:\d{10}|\d{3}[-.\s]\d{3}[-.\s]\d{4})/,
   );
-  const cgpaMatch = text.match(
-    /(?:CGPA|Cumulative GPA|GPA|cgpa|CGP A)\s*[:=]?\s*(\d+(?:\.\d+)?)\s*(?:\/\s*10)?/i,
+
+  let extractedCgpa: number | null = null;
+  const fractionMatch = text.match(
+    /(\d{1,2}(?:\.\d{1,2})?)\s*\/\s*(4\.?0?|5\.?0?|10\.?0?)/,
   );
-
-  const fallbackName = lines.find((line) => {
-    const normalized = line.replace(/\s+/g, " ");
-    return (
-      /^[A-Z][A-Za-z'-.]+(?:\s+[A-Z][A-Za-z'-.]+){0,4}$/.test(normalized) &&
-      !/[0-9]/.test(normalized) &&
-      normalized.length > 2 &&
-      !/(SKILLS|PROJECTS|EDUCATION|EXPERIENCE|CONTACT|PHONE|EMAIL)/i.test(
-        normalized,
-      )
+  if (fractionMatch) {
+    const rawVal = Number(fractionMatch[1]);
+    const scale = Number(fractionMatch[2]);
+    if (scale === 4 || scale === 4.0) extractedCgpa = (rawVal / 4.0) * 10;
+    else if (scale === 5 || scale === 5.0) extractedCgpa = (rawVal / 5.0) * 10;
+    else extractedCgpa = rawVal;
+  } else {
+    const cgpaMatch = text.match(
+      /(?:CGPA|Cumulative GPA|GPA)\s*[:=-]?\s*([0-9](?:\.\d{1,2})?)/i,
     );
-  });
+    if (cgpaMatch) {
+      let rawVal = Number(cgpaMatch[1]);
+      if (rawVal <= 4.0) rawVal = (rawVal / 4.0) * 10;
+      else if (rawVal <= 5.0 && rawVal > 4.0) rawVal = (rawVal / 5.0) * 10;
+      extractedCgpa = rawVal;
+    }
+  }
+  if (extractedCgpa !== null) extractedCgpa = Number(extractedCgpa.toFixed(1));
 
+  // Restored strict name extraction for the bottom Profile Box
+  let fallbackName = "Candidate Name";
+  const forbiddenNameKeywords =
+    /(student|engineer|developer|intern|resume|cv|skills|education|experience|contact|phone|email|summary|objective|ak|al|ar|az|ca|co|ct|dc|de|fl|ga|hi|ia|portfolio|profile)/i;
+
+  for (let i = 0; i < Math.min(8, lines.length); i++) {
+    const line = lines[i];
+    if (/[0-9@]/.test(line) || /github|linkedin|\.com/i.test(line)) continue;
+
+    const cleanLine = line.replace(/[^a-zA-Z\s]/g, "").trim();
+    const words = cleanLine.split(/\s+/);
+    if (
+      words.length >= 1 &&
+      words.length <= 4 &&
+      cleanLine.length > 2 &&
+      !forbiddenNameKeywords.test(cleanLine)
+    ) {
+      fallbackName = line.trim();
+      break;
+    }
+  }
+
+  // Strict word boundaries to avoid 'received' hallucinating 'ECE'
   const education = lines.filter((line) =>
-    /B\.Tech|BTech|M\.Tech|MBA|B\.E|Bachelor|Master|Engineering|Computer Science|CSE|ECE/i.test(
+    /\b(B\.Tech|BTech|M\.Tech|MBA|B\.E|B\.F\.A|BFA|Bachelor|Master|Engineering|Computer Science|CSE|ECE|Arts|Science)\b/i.test(
       line,
     ),
   );
 
   const skillMatches = new Set<string>();
+
   skillCatalog.forEach((skill) => {
-    const regex = new RegExp(skill.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
-    if (regex.test(text)) skillMatches.add(normalizeSkill(skill));
+    const escapedSkill = skill.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    // Strict non-word boundary checks prevent URLs from firing skills
+    const regex = new RegExp(
+      `(?:^|[^a-zA-Z0-9_])${escapedSkill}(?=[^a-zA-Z0-9_]|$)`,
+      "i",
+    );
+    if (regex.test(text)) {
+      skillMatches.add(normalizeSkill(skill));
+    }
   });
 
-  const fallbackSkills = Array.from(
-    new Set(
-      (
-        text.match(
-          /(?:Python|Java|C\+\+|JavaScript|TypeScript|React|SQL|AWS|Docker|Git|MongoDB|Node\.js|Node|Machine Learning|ML|Algorithms|Data Structures)/gi,
-        ) || []
-      ).map((skill) => normalizeSkill(skill)),
-    ),
-  );
-  const extractedSkills = [
-    ...Array.from(skillMatches),
-    ...fallbackSkills,
-  ].filter(Boolean);
+  const extractedSkills = Array.from(skillMatches).filter(Boolean);
 
   return {
-    name: fallbackName || "Student",
+    name: fallbackName,
     email: emailMatch?.[0] || "N/A",
     phone: phoneMatch?.[0] || "N/A",
-    cgpa: cgpaMatch ? Number(cgpaMatch[1]) : null,
+    cgpa: extractedCgpa,
     skills: [...new Set(extractedSkills.map((s) => normalizeSkill(s)))].filter(
       Boolean,
     ),

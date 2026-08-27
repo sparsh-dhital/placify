@@ -1,4 +1,3 @@
-// src/pages/student/Dashboard.tsx
 import { useState, useEffect } from "react";
 import type { ChangeEvent } from "react";
 import {
@@ -11,14 +10,18 @@ import {
   CheckCircle2,
   XCircle,
   Sparkles,
-  AlertCircle,
+  UploadCloud,
 } from "lucide-react";
-import { getStudentDashboard, parseStudentResume } from "../../services/api";
+import {
+  getStudentDashboard,
+  parseStudentResume,
+  API_URL,
+} from "../../services/api";
 import type {
   ResumeMatchResult,
   StudentDashboardResponse,
 } from "../../services/api";
-import { AICritic } from "../../components/ui/AICritic"; // <-- AI Critic Imported
+import { AICritic } from "../../components/ui/AICritic";
 
 export default function StudentDashboard() {
   const [isLoading, setIsLoading] = useState(true);
@@ -26,13 +29,11 @@ export default function StudentDashboard() {
   const [resumeResult, setResumeResult] = useState<ResumeMatchResult | null>(
     null,
   );
+  const [dynamicRecs, setDynamicRecs] = useState<string[]>([]);
   const [isParsing, setIsParsing] = useState(false);
   const [selectedFileName, setSelectedFileName] = useState<string>("");
   const [parseError, setParseError] = useState<string>("");
-  const displayedProfile = resumeResult?.parsed;
-
-  // Hardcoded student ID for demonstration
-  const activeStudentId = "s1";
+  const [userEmail, setUserEmail] = useState<string>("Not uploaded");
 
   const handleResumeUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -50,13 +51,45 @@ export default function StudentDashboard() {
         missing_skills: ["Docker"],
       });
       setResumeResult(result);
+
+      const newRecs = [];
+      if (result.missing_skills.length > 0) {
+        newRecs.push(
+          `Skill Gap Detected: You are missing ${result.missing_skills.join(", ")}. Focus on these areas to improve your overall match rate.`,
+        );
+      }
+      if (result.eligibility_score < 75) {
+        newRecs.push(
+          `Your eligibility score is ${result.eligibility_score}%. Ensure your resume explicitly details relevant backend frameworks or tools.`,
+        );
+      } else {
+        newRecs.push(
+          "Your profile is highly optimized for this role. Prepare for technical rounds by reviewing standard algorithms.",
+        );
+      }
+      setDynamicRecs(newRecs);
+
+      const token = localStorage.getItem("placify_token");
+      await fetch(`${API_URL}/student/sync-resume`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          cgpa: result.parsed.cgpa,
+          skills: result.parsed.skills,
+          readiness_score: result.eligibility_score,
+        }),
+      });
+
+      const updatedData = await getStudentDashboard();
+      setData(updatedData);
     } catch (error) {
-      console.error("Resume parsing failed:", error);
+      console.error("Parsing failed:", error);
       setResumeResult(null);
       setParseError(
-        error instanceof Error
-          ? error.message
-          : "Unable to parse this file. Try a clearer PDF or image.",
+        error instanceof Error ? error.message : "Unable to parse this file.",
       );
     } finally {
       setIsParsing(false);
@@ -64,10 +97,18 @@ export default function StudentDashboard() {
   };
 
   useEffect(() => {
+    try {
+      const user = JSON.parse(localStorage.getItem("placify_user") || "{}");
+      if (user && user.email) setUserEmail(user.email);
+    } catch (e) {
+      console.error(e);
+    }
+
     const fetchDashboard = async () => {
       try {
-        const result = await getStudentDashboard(activeStudentId, true);
+        const result = await getStudentDashboard();
         setData(result);
+        setDynamicRecs(result.ai_recommendations);
       } catch (error) {
         console.error(error);
       } finally {
@@ -81,7 +122,7 @@ export default function StudentDashboard() {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center text-center">
         <div className="w-12 h-12 rounded-full border-t-2 border-indigo-500 animate-spin mb-4"></div>
-        <p className="text-slate-500 dark:text-slate-400 font-medium">
+        <p className="text-slate-500 font-medium">
           Loading your placement profile...
         </p>
       </div>
@@ -91,380 +132,240 @@ export default function StudentDashboard() {
   if (!data) return null;
 
   return (
-    <main
-      className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500"
-      aria-label="Student Placement Dashboard"
-    >
-      {/* Header & Readiness Score */}
+    <main className="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12">
+      {/* 1. Header Banner - STRICTLY TIED TO AUTH/DB */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-indigo-100 dark:bg-indigo-500/20 flex items-center justify-center shrink-0 border border-indigo-200 dark:border-indigo-500/30">
-            <User
-              className="w-8 h-8 text-indigo-600 dark:text-indigo-400"
-              aria-hidden="true"
-            />
+          <div className="w-16 h-16 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center shrink-0 border border-indigo-200 dark:border-indigo-500/30">
+            <User className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
           </div>
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
-              Welcome, {displayedProfile?.name || data.profile.name} 👋
+            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">
+              Welcome, {data.profile.name} 👋
             </h1>
             <p className="text-slate-600 dark:text-slate-400 mt-1 text-sm font-medium">
-              {displayedProfile?.education[0] || data.profile.branch} • Email:{" "}
-              {displayedProfile?.email || "Not uploaded"} • CGPA:{" "}
-              {displayedProfile?.cgpa ?? data.profile.cgpa}
+              {data.profile.branch} &nbsp;•&nbsp; Email: {userEmail}{" "}
+              &nbsp;•&nbsp; CGPA: {data.profile.cgpa}
             </p>
           </div>
         </div>
-
-        <div className="bg-white dark:bg-[#0A0A12]/80 backdrop-blur-xl border border-slate-200 dark:border-white/10 rounded-2xl p-4 shadow-sm w-full md:w-64">
+        <div className="bg-white dark:bg-[#0A0A12] border border-slate-200 dark:border-white/10 rounded-2xl p-4 shadow-sm w-full md:w-64">
           <div className="flex justify-between items-center mb-2">
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-              Placement Readiness
+              Readiness Score
             </span>
-            <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
-              {data.profile.readiness_score}%
+            <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">
+              {resumeResult?.eligibility_score ?? data.profile.readiness_score}%
             </span>
           </div>
-          <div
-            className="w-full bg-slate-100 dark:bg-white/5 rounded-full h-2.5 overflow-hidden"
-            role="progressbar"
-            aria-valuenow={data.profile.readiness_score}
-            aria-valuemin={0}
-            aria-valuemax={100}
-          >
+          <div className="w-full bg-slate-100 dark:bg-white/5 rounded-full h-2.5 overflow-hidden">
             <div
-              className="bg-emerald-500 h-2.5 rounded-full"
-              style={{ width: `${data.profile.readiness_score}%` }}
+              className="bg-indigo-500 h-2.5 rounded-full transition-all duration-1000"
+              style={{
+                width: `${resumeResult?.eligibility_score ?? data.profile.readiness_score}%`,
+              }}
             ></div>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column: Interviews & Recommendations */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Upcoming Interview */}
-          {data.upcoming_interview && (
-            <div className="bg-gradient-to-br from-indigo-600 to-blue-700 rounded-[2rem] p-6 sm:p-8 shadow-xl shadow-indigo-600/20 text-white relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none transform translate-x-1/2 -translate-y-1/2" />
+      {/* 2. CENTERED HERO UPLOAD SECTION */}
+      <div className="w-full bg-white dark:bg-[#0A0A12] border-2 border-dashed border-indigo-200 dark:border-indigo-500/30 rounded-[2rem] p-8 sm:p-14 text-center shadow-sm hover:border-indigo-400 dark:hover:border-indigo-500/60 transition-colors">
+        <UploadCloud className="w-12 h-12 text-indigo-500 mx-auto mb-4" />
+        <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-2">
+          Resume Eligibility Engine
+        </h2>
+        <p className="text-slate-500 dark:text-slate-400 mb-8 max-w-lg mx-auto text-sm">
+          Upload your latest resume to parse skills, check matching
+          requirements, and instantly compute your eligibility score.
+        </p>
 
-              <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                <div>
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-xs font-bold uppercase tracking-wider mb-4 border border-white/30">
-                    <Calendar className="w-3.5 h-3.5" /> Upcoming Interview
-                  </div>
-                  <h2 className="text-2xl font-bold mb-1">
-                    {data.upcoming_interview.company}
-                  </h2>
-                  <p className="text-indigo-100 font-medium">
-                    {data.upcoming_interview.role}
-                  </p>
-                </div>
+        <label className="inline-flex cursor-pointer items-center justify-center rounded-xl bg-indigo-600 hover:bg-indigo-500 px-8 py-3.5 text-sm font-bold text-white transition shadow-lg shadow-indigo-600/20 active:scale-95">
+          <input
+            type="file"
+            accept=".pdf,.txt,.jpg,.jpeg,.png,.webp"
+            className="hidden"
+            onChange={handleResumeUpload}
+            disabled={isParsing}
+          />
+          {isParsing ? "Parsing Document..." : "Upload Resume to Scan"}
+        </label>
 
-                <div className="flex flex-col gap-3 bg-white/10 backdrop-blur-md border border-white/20 p-4 rounded-2xl w-full md:w-auto">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0">
-                      <MapPin className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-indigo-100 uppercase tracking-wider font-semibold">
-                        Location
-                      </p>
-                      <p className="font-bold">
-                        {data.upcoming_interview.room}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0">
-                      <Calendar className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-indigo-100 uppercase tracking-wider font-semibold">
-                        Date & Time
-                      </p>
-                      <p className="font-bold">
-                        {data.upcoming_interview.date},{" "}
-                        {data.upcoming_interview.time}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
+        {selectedFileName && (
+          <p className="mt-5 text-xs font-medium text-slate-600 dark:text-slate-300">
+            Selected File: {selectedFileName}
+          </p>
+        )}
+        {parseError && (
+          <p className="mt-3 text-xs font-bold text-red-500">{parseError}</p>
+        )}
+      </div>
 
-              <div className="mt-6 pt-6 border-t border-white/20 flex justify-between items-center relative z-10">
-                <div className="flex items-center gap-2 text-sm font-medium text-indigo-100">
-                  <UsersRound className="w-4 h-4" />{" "}
-                  {data.upcoming_interview.panel}
-                </div>
-                <button className="px-4 py-2 bg-white text-indigo-600 text-sm font-bold rounded-xl hover:bg-slate-50 transition-colors cursor-none">
-                  View Details
-                </button>
+      {/* 3. PARSED RESULTS SUMMARY */}
+      {resumeResult && (
+        <div className="rounded-[2rem] border border-slate-200 bg-white p-6 sm:p-8 dark:border-white/10 dark:bg-[#0A0A12] shadow-xl shadow-slate-900/5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 border-b border-slate-100 dark:border-white/5 pb-6">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                {resumeResult.company}
+              </p>
+              <h5 className="text-xl font-bold text-slate-900 dark:text-white">
+                {resumeResult.role} Match Result
+              </h5>
+            </div>
+            <div
+              className={`rounded-xl border px-5 py-2.5 text-xl font-bold ${resumeResult.eligibility_status === "Eligible" ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:border-emerald-500/20" : resumeResult.eligibility_status === "Borderline" ? "border-amber-200 bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:border-amber-500/20" : "border-red-200 bg-red-50 text-red-700 dark:bg-red-500/10 dark:border-red-500/20"}`}
+            >
+              {resumeResult.eligibility_score}% Match
+            </div>
+          </div>
+
+          <div className="grid gap-8 sm:grid-cols-2 mb-6">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-3">
+                Verified Skills (Match)
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {resumeResult.matched_skills.length ? (
+                  resumeResult.matched_skills.map((skill) => (
+                    <span
+                      key={skill}
+                      className="rounded-lg bg-emerald-100 dark:bg-emerald-500/20 px-3 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-300"
+                    >
+                      {skill}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-xs text-slate-500">
+                    No direct matches found
+                  </span>
+                )}
               </div>
             </div>
-          )}
-
-          {/* Job Matches */}
-          <div className="bg-white dark:bg-[#0A0A12]/80 backdrop-blur-2xl border border-slate-200 dark:border-white/10 rounded-[2rem] shadow-xl shadow-slate-900/5 overflow-hidden">
-            <div className="p-6 border-b border-slate-200 dark:border-white/10">
-              <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Target className="w-5 h-5 text-indigo-500" /> Available
-                Opportunities
-              </h2>
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-3">
+                Missing Requirements
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {resumeResult.missing_skills.length ? (
+                  resumeResult.missing_skills.map((skill) => (
+                    <span
+                      key={skill}
+                      className="rounded-lg bg-red-100 dark:bg-red-500/20 px-3 py-1 text-xs font-bold text-red-700 dark:text-red-300 flex items-center gap-1"
+                    >
+                      <XCircle className="w-3.5 h-3.5" />
+                      {skill}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-xs text-slate-500">
+                    No critical gaps detected
+                  </span>
+                )}
+              </div>
             </div>
-            <div className="divide-y divide-slate-100 dark:divide-white/5">
-              {data.job_matches.map((match, idx) => {
-                const isHighMatch = match.match_score >= 80;
-                return (
-                  <div
-                    key={idx}
-                    className="p-6 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors group cursor-none"
-                  >
-                    <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                          {match.company}
-                        </h3>
-                        <p className="text-sm text-slate-500">{match.role}</p>
-                      </div>
-                      <div
-                        className={`px-3 py-1 rounded-xl border text-sm font-bold font-mono flex items-center gap-1.5 ${
-                          isHighMatch
-                            ? "text-emerald-600 bg-emerald-50 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20"
-                            : "text-amber-600 bg-amber-50 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20"
-                        }`}
+          </div>
+
+          <div className="rounded-2xl border border-slate-100 bg-slate-50 p-5 dark:border-white/5 dark:bg-[#05050A]">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-3">
+              Extracted Candidate Profile Data
+            </p>
+            <p className="text-sm text-slate-700 dark:text-slate-300">
+              Name:{" "}
+              <strong className="text-slate-900 dark:text-white">
+                {resumeResult.parsed.name}
+              </strong>{" "}
+              &nbsp;•&nbsp; Email:{" "}
+              <strong className="text-slate-900 dark:text-white">
+                {resumeResult.parsed.email}
+              </strong>{" "}
+              &nbsp;•&nbsp; CGPA:{" "}
+              <strong className="text-slate-900 dark:text-white">
+                {resumeResult.parsed.cgpa ?? "N/A"}
+              </strong>
+            </p>
+            <p className="text-sm text-slate-700 dark:text-slate-300 mt-2">
+              Parsed Education:{" "}
+              <strong className="text-slate-900 dark:text-white">
+                {resumeResult.parsed.education.join(" • ") || "None detected"}
+              </strong>
+            </p>
+            <p className="text-sm text-slate-700 dark:text-slate-300 mt-2">
+              Parsed Skills:{" "}
+              {resumeResult.parsed.skills.join(", ") || "None detected"}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* 4. BOTTOM GRID */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="bg-gradient-to-br from-indigo-600 to-blue-700 border border-indigo-500 rounded-[2rem] p-6 sm:p-8 shadow-xl shadow-indigo-600/20 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none transform translate-x-1/2 -translate-y-1/2" />
+          <h2 className="text-lg font-bold text-white flex items-center gap-2 mb-6 relative z-10">
+            <Target className="w-5 h-5 text-indigo-200" /> Active Opportunities
+          </h2>
+
+          <div className="space-y-4 relative z-10">
+            {data.job_matches.map((match, idx) => {
+              const isHighMatch = match.match_score >= 80;
+              return (
+                <div
+                  key={idx}
+                  className="bg-white/10 backdrop-blur-md rounded-2xl p-5 border border-white/20 shadow-sm hover:bg-white/20 transition-colors cursor-pointer group"
+                >
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <h3 className="text-lg font-bold text-white group-hover:translate-x-1 transition-transform">
+                        {match.company}
+                      </h3>
+                      <p className="text-sm font-medium text-indigo-100">
+                        {match.role}
+                      </p>
+                    </div>
+                    <div
+                      className={`px-3 py-1 rounded-lg border text-xs font-bold flex items-center gap-1.5 ${isHighMatch ? "text-emerald-300 bg-emerald-900/40 border-emerald-500/30" : "text-amber-300 bg-amber-900/40 border-amber-500/30"}`}
+                    >
+                      {isHighMatch && <CheckCircle2 className="w-3.5 h-3.5" />}
+                      {match.match_score}% Match
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 mt-4 border-t border-white/10 pt-4">
+                    {match.matched_skills.slice(0, 3).map((skill) => (
+                      <span
+                        key={skill}
+                        className="px-2.5 py-1 bg-white/20 text-white text-[10px] uppercase tracking-wider font-bold rounded-md"
                       >
-                        {isHighMatch && <CheckCircle2 className="w-4 h-4" />}
-                        {match.match_score}% Match
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <div>
-                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                          Matched Skills
-                        </p>
-                        <div className="flex flex-wrap gap-2">
-                          {match.matched_skills.map((skill) => (
-                            <span
-                              key={skill}
-                              className="px-2 py-1 bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-300 text-xs font-semibold rounded"
-                            >
-                              {skill}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-
-                      {match.missing_skills.length > 0 && (
-                        <div>
-                          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                            Missing Skills
-                          </p>
-                          <div className="flex flex-wrap gap-2">
-                            {match.missing_skills.map((skill) => (
-                              <span
-                                key={skill}
-                                className="px-2 py-1 bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/20 text-xs font-semibold rounded flex items-center gap-1"
-                              >
-                                <XCircle className="w-3 h-3" /> {skill}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                        {skill}
+                      </span>
+                    ))}
                   </div>
-                );
-              })}
-            </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 
-        {/* Right Column: AI Insights & Skill Gaps */}
-        <div className="space-y-6">
-          <div className="bg-white dark:bg-[#0A0A12]/80 backdrop-blur-2xl border border-slate-200 dark:border-white/10 rounded-[2rem] shadow-xl shadow-slate-900/5 p-6 sticky top-24">
-            <h3 className="text-sm font-semibold text-slate-900 dark:text-white mb-6 uppercase tracking-wider flex items-center gap-2">
-              <BrainCircuit
-                className="w-4 h-4 text-indigo-500"
-                aria-hidden="true"
-              />
-              AI Recommendations
-            </h3>
-
-            <div className="space-y-4" role="list">
-              {data.ai_recommendations.map((rec, idx) => (
-                <div
-                  key={idx}
-                  className="flex gap-3 p-3 rounded-xl bg-slate-50 dark:bg-[#05050A] border border-slate-200 dark:border-white/5"
-                  role="listitem"
-                >
-                  <div className="mt-0.5 shrink-0">
-                    <Sparkles className="w-4 h-4 text-amber-500" />
-                  </div>
-                  <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
-                    {rec}
-                  </p>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-6 pt-6 border-t border-slate-200 dark:border-white/10">
-              <div className="flex items-start gap-3 p-4 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20">
-                <AlertCircle className="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
-                <div className="w-full">
-                  <h4 className="text-sm font-bold text-indigo-900 dark:text-indigo-300">
-                    Resume Eligibility Check
-                  </h4>
-                  <p className="text-xs text-indigo-700 dark:text-indigo-400 mt-1">
-                    Upload your latest resume to parse skills, check matching
-                    requirements, and compute eligibility score.
-                  </p>
-
-                  <label className="mt-3 flex cursor-pointer items-center justify-center rounded-xl border border-dashed border-indigo-300 bg-white px-3 py-3 text-sm font-semibold text-indigo-700 transition hover:border-indigo-400 hover:bg-indigo-50 dark:bg-[#0A0A12] dark:text-indigo-300">
-                    <input
-                      type="file"
-                      accept=".pdf,.txt,.jpg,.jpeg,.png,.webp"
-                      className="hidden"
-                      onChange={handleResumeUpload}
-                    />
-                    {isParsing ? "Parsing resume..." : "Upload Resume"}
-                  </label>
-
-                  {selectedFileName && (
-                    <p className="mt-2 text-xs text-slate-600 dark:text-slate-300">
-                      Selected: {selectedFileName}
-                    </p>
-                  )}
-                  {parseError && (
-                    <p
-                      className="mt-2 text-xs font-medium text-red-600 dark:text-red-400"
-                      role="alert"
-                    >
-                      {parseError}
-                    </p>
-                  )}
-                </div>
+        <div className="bg-white dark:bg-[#0A0A12] border border-slate-200 dark:border-white/10 rounded-[2rem] p-6 sm:p-8 shadow-sm">
+          <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-6 uppercase tracking-wider flex items-center gap-2">
+            <BrainCircuit className="w-5 h-5 text-indigo-500" /> Actionable
+            Insights
+          </h3>
+          <div className="space-y-4">
+            {dynamicRecs.map((rec, idx) => (
+              <div
+                key={idx}
+                className="flex gap-3.5 p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5"
+              >
+                <Sparkles className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                <p className="text-sm font-medium text-slate-700 dark:text-slate-300 leading-relaxed">
+                  {rec}
+                </p>
               </div>
-
-              {resumeResult && (
-                <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-[#05050A]">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                        {resumeResult.company}
-                      </p>
-                      <h5 className="text-lg font-bold text-slate-900 dark:text-white">
-                        {resumeResult.role}
-                      </h5>
-                    </div>
-                    <div
-                      className={`rounded-xl border px-2.5 py-1.5 text-sm font-bold ${
-                        resumeResult.eligibility_status === "Eligible"
-                          ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400"
-                          : resumeResult.eligibility_status === "Borderline"
-                            ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-400"
-                            : "border-red-200 bg-red-50 text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400"
-                      }`}
-                    >
-                      {resumeResult.eligibility_score}%
-                    </div>
-                  </div>
-
-                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                    <div>
-                      <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                        Matched Skills
-                      </p>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {resumeResult.matched_skills.length ? (
-                          resumeResult.matched_skills.map((skill) => (
-                            <span
-                              key={skill}
-                              className="rounded-full bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300"
-                            >
-                              {skill}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="text-xs text-slate-500 dark:text-slate-400">
-                            No direct matches found
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div>
-                      <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                        Missing Skills
-                      </p>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {resumeResult.missing_skills.length ? (
-                          resumeResult.missing_skills.map((skill) => (
-                            <span
-                              key={skill}
-                              className="rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-700 dark:bg-red-500/10 dark:text-red-300"
-                            >
-                              {skill}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="text-xs text-slate-500 dark:text-slate-400">
-                            No critical gaps
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 rounded-xl border border-slate-200 bg-white p-3 dark:border-white/10 dark:bg-[#0A0A12]">
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      Extracted Candidate Info
-                    </p>
-                    <div className="mt-2 grid gap-2 text-sm text-slate-700 dark:text-slate-300">
-                      <p>
-                        <span className="font-semibold">Name:</span>{" "}
-                        {resumeResult.parsed.name}
-                      </p>
-                      <p>
-                        <span className="font-semibold">Email:</span>{" "}
-                        {resumeResult.parsed.email}
-                      </p>
-                      <p>
-                        <span className="font-semibold">Phone:</span>{" "}
-                        {resumeResult.parsed.phone}
-                      </p>
-                      <p>
-                        <span className="font-semibold">CGPA:</span>{" "}
-                        {resumeResult.parsed.cgpa ?? "N/A"}
-                      </p>
-                      <p>
-                        <span className="font-semibold">Skills:</span>{" "}
-                        {resumeResult.parsed.skills.join(", ") ||
-                          "No skills detected"}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="mt-4">
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      Requirement Match Summary
-                    </p>
-                    <ul className="mt-2 space-y-1 text-sm text-slate-700 dark:text-slate-300">
-                      {resumeResult.reasons.map((reason) => (
-                        <li key={reason} className="list-disc pl-5">
-                          {reason}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              )}
-            </div>
+            ))}
           </div>
         </div>
       </div>
-      {/* Floating Groq-powered AI Critic */}
       <AICritic />
     </main>
   );
