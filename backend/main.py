@@ -14,7 +14,7 @@ resend.api_key = os.getenv("RESEND_API_KEY")
 
 # Import database and routers
 from database import db
-from routes import auth, panel, chat
+from routes import auth, chat
 from app.api.routes_admin import router as admin_router
 from app.api.routes_panel import router as app_panel_router
 from app.api.routes_student import router as student_router
@@ -30,14 +30,14 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
-app.include_router(admin_router, prefix="/api/admin", tags=["admin"])
-app.include_router(app_panel_router, prefix="/api/panel", tags=["panel"])
-app.include_router(student_router, prefix="/api/student", tags=["student"])
+# Register secured routing
+app.include_router(admin_router, prefix="/api/admin", tags=["Admin Operations"])
+app.include_router(app_panel_router, prefix="/api/panel", tags=["Panelist Operations"])
+app.include_router(student_router, prefix="/api/student", tags=["Student Portal"])
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
-app.include_router(panel.router, prefix="/api/panel", tags=["Panelist Operations"])
-app.include_router(chat.router, prefix="/api/chat", tags=["AI Critic Agent"])
+app.include_router(chat.router, prefix="/api/chat", tags=["AI Assistant"])
 
-# Startup Event to confirm MongoDB connection (EMOJIS REMOVED TO PREVENT WINDOWS TERMINAL CRASH)
+# Startup Event to confirm MongoDB connection
 @app.on_event("startup")
 async def startup_db_check():
     try:
@@ -60,7 +60,7 @@ async def root():
 @app.post("/api/contact")
 async def handle_contact_form(form: ContactForm):
     try:
-        # Sends a beautifully styled HTML email to 251fa04i95.sparsh@gmail.com via Resend
+        # Sends a beautifully styled HTML email via Resend
         params = {
             "from": "Placify Operations <onboarding@resend.dev>",
             "to": ["251fa04i95.sparsh@gmail.com"],
@@ -113,7 +113,7 @@ async def handle_contact_form(form: ContactForm):
 
                     </div>
                 </div>
-            """,
+            """
         }
         email_response = resend.Emails.send(params)
         return {"success": True, "message": "Email dispatched successfully!", "resend_id": email_response.get("id")}

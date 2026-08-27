@@ -1,5 +1,5 @@
 // src/pages/panelist/Dashboard.tsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   User,
   Clock,
@@ -13,11 +13,16 @@ import {
   Building,
   AlertCircle,
 } from "lucide-react";
-import { submitInterviewFeedback } from "../../services/api";
-import { AICritic } from "../../components/ui/AICritic"; // <-- AI Critic Imported
+import {
+  submitInterviewFeedback,
+  getPanelInterviews,
+} from "../../services/api";
 
 export default function PanelistDashboard() {
-  const [selectedCandidate, setSelectedCandidate] = useState<string>("c1");
+  const [schedule, setSchedule] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [selectedCandidate, setSelectedCandidate] = useState<string>("");
+
   const [verdict, setVerdict] = useState<"Hire" | "Reject" | "Hold" | null>(
     null,
   );
@@ -31,38 +36,32 @@ export default function PanelistDashboard() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
 
-  const [schedule, setSchedule] = useState([
-    {
-      id: "c1",
-      name: "Aarav Mehta",
-      time: "09:00 AM",
-      status: "pending",
-      room: "Lab 2",
-      cgpa: 8.7,
-      branch: "CSE",
-      skills: ["Python", "SQL", "React"],
-    },
-    {
-      id: "c2",
-      name: "Ananya Sharma",
-      time: "10:00 AM",
-      status: "pending",
-      room: "Lab 2",
-      cgpa: 9.1,
-      branch: "CSE",
-      skills: ["Python", "AWS", "Git"],
-    },
-    {
-      id: "c3",
-      name: "Sneha Patel",
-      time: "11:00 AM",
-      status: "completed",
-      room: "Lab 2",
-      cgpa: 8.2,
-      branch: "ECE",
-      skills: ["Java", "SQL"],
-    },
-  ]);
+  // Fetch live roster from the backend on mount
+  useEffect(() => {
+    getPanelInterviews("p1")
+      .then((res) => {
+        if (res.success) {
+          // Map the backend structure to the frontend state structure
+          const formattedSchedule = res.interviews.map((int: any) => ({
+            id: int.candidate.id,
+            name: int.candidate.name,
+            time: int.time,
+            status: int.status,
+            room: int.room,
+            cgpa: int.candidate.cgpa,
+            branch: int.candidate.branch,
+            skills: int.candidate.skills,
+          }));
+
+          setSchedule(formattedSchedule);
+          if (formattedSchedule.length > 0) {
+            setSelectedCandidate(formattedSchedule[0].id);
+          }
+        }
+      })
+      .catch(console.error)
+      .finally(() => setIsLoading(false));
+  }, []);
 
   const current =
     schedule.find((s) => s.id === selectedCandidate) || schedule[0];
@@ -72,7 +71,7 @@ export default function PanelistDashboard() {
     setIsSynthesizing(true);
     setTimeout(() => {
       setNotes(
-        `AI Synthesized Summary for ${current.name}:\n• Strong grasp of core data structures and ${current.skills[0]} fundamentals.\n• Communicated problem-solving approach clearly.\n• Recommended Verdict: Strong Hire for Technical Round 2.`,
+        `AI Synthesized Summary for ${current?.name}:\n• Strong grasp of core data structures and ${current?.skills[0]} fundamentals.\n• Communicated problem-solving approach clearly.\n• Recommended Verdict: Strong Hire for Technical Round 2.`,
       );
       setTechScore(5);
       setVerdict("Hire");
@@ -81,7 +80,7 @@ export default function PanelistDashboard() {
   };
 
   const handleSubmitEvaluation = async () => {
-    if (!verdict) return;
+    if (!verdict || !current) return;
 
     setIsSubmitting(true);
 
@@ -89,17 +88,14 @@ export default function PanelistDashboard() {
       const overallResult =
         verdict === "Hire" ? "pass" : verdict === "Reject" ? "fail" : "hold";
 
-      await submitInterviewFeedback(
-        {
-          interview_id: current.id,
-          technical_score: techScore,
-          communication_score: techScore,
-          problem_solving_score: techScore,
-          overall_result: overallResult,
-          comments: notes,
-        },
-        true,
-      );
+      await submitInterviewFeedback({
+        interview_id: current.id,
+        technical_score: techScore,
+        communication_score: techScore,
+        problem_solving_score: techScore,
+        overall_result: overallResult,
+        comments: notes,
+      });
 
       setSubmitSuccess(true);
 
@@ -128,6 +124,27 @@ export default function PanelistDashboard() {
       setIsSubmitting(false);
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center text-center">
+        <div className="w-12 h-12 rounded-full border-t-2 border-indigo-500 animate-spin mb-4"></div>
+        <p className="text-slate-500 dark:text-slate-400 font-medium">
+          Loading Interview Roster...
+        </p>
+      </div>
+    );
+  }
+
+  if (!current) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center text-center">
+        <p className="text-slate-500 dark:text-slate-400 font-medium">
+          No interviews scheduled for today.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <main className="max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500 pb-16 relative">
@@ -264,7 +281,7 @@ export default function PanelistDashboard() {
               </div>
               <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
                 Candidate exhibits strong problem-solving proficiencies in{" "}
-                {current.skills.join(", ")}.
+                {current.skills?.join(", ")}.
               </p>
             </div>
 
@@ -361,9 +378,6 @@ export default function PanelistDashboard() {
           </div>
         </section>
       </div>
-
-      {/* Floating Groq-powered AI Critic */}
-      <AICritic />
     </main>
   );
 }
