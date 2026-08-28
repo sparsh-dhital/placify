@@ -1,5 +1,4 @@
 import { useEffect, useRef } from "react";
-import { MousePointer2 } from "lucide-react";
 import { cn } from "../../utils/cn";
 
 export default function CustomCursor() {
@@ -90,16 +89,10 @@ export default function CustomCursor() {
         "fixed top-0 left-0 pointer-events-none z-[9999] mix-blend-difference rounded-full flex items-center justify-center will-change-transform",
         "w-3 h-3 bg-white",
         "[&.cursor-hover]:scale-150",
-        "[&.cursor-hover_.cursor-pointer-icon]:opacity-100",
         "[&.cursor-active]:scale-75",
         "transition-transform duration-150 ease-out",
       )}
       aria-hidden="true"
-    >
-      <MousePointer2
-        className="cursor-pointer-icon absolute w-5 h-5 opacity-0 transition-opacity duration-150"
-        strokeWidth={2.5}
-      />
-    </div>
+    />
   );
 }
