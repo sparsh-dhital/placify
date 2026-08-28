@@ -38,7 +38,7 @@ export default function PanelistDashboard() {
 
   // Fetch live roster from the backend on mount
   useEffect(() => {
-    getPanelInterviews("p1")
+    getPanelInterviews()
       .then((res) => {
         if (res.success) {
           // Map the backend structure to the frontend state structure

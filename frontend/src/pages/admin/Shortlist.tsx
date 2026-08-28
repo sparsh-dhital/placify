@@ -8,10 +8,7 @@ import {
   Save,
   ShieldCheck,
 } from "lucide-react";
-import {
-  generateMatches,
-  submitShortlistApproval,
-} from "../../services/api";
+import { generateMatches, submitShortlistApproval } from "../../services/api";
 import type { MatchResponse, ShortlistDecision } from "../../services/api";
 
 export default function Shortlist() {
@@ -83,7 +80,7 @@ export default function Shortlist() {
     setIsSubmitting(true);
     try {
       const payload = Object.values(decisions);
-      const result = await submitShortlistApproval(activeJobId, payload, true);
+      const result = await submitShortlistApproval(activeJobId, payload);
       alert(
         `Success! ${result.message}\nApproved: ${result.approved_count}\nRejected: ${result.rejected_count}`,
       );

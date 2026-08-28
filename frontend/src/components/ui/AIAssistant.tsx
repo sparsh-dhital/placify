@@ -21,7 +21,6 @@ import {
   sendChatMessage,
   getChatHistory,
   deleteChatMessage,
-  clearChatHistory,
 } from "../../services/api";
 
 interface Message {

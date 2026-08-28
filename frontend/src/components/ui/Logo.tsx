@@ -1,3 +1,4 @@
+// frontend/src/components/ui/Logo.tsx
 export function Logo({
   className = "w-9 h-9",
   iconSize = "w-5 h-5",

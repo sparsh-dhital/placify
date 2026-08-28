@@ -1,7 +1,8 @@
-// src/services/api.ts
-
 export const API_URL = "http://localhost:8000/api";
 
+// ==========================================
+// SECURITY HELPER: Auto-inject JWT Tokens
+// ==========================================
 const fetchWithAuth = async (endpoint: string, options: RequestInit = {}) => {
   const token = localStorage.getItem("placify_token");
   const headers = {
@@ -25,6 +26,9 @@ const fetchWithAuth = async (endpoint: string, options: RequestInit = {}) => {
   return response.json();
 };
 
+// ==========================================
+// AUTHENTICATION
+// ==========================================
 export async function loginUser(credentials: {
   email: string;
   password: string;
@@ -101,6 +105,9 @@ export async function verifyOAuthCode(
   return response.json();
 }
 
+// ==========================================
+// CHAT
+// ==========================================
 export const sendChatMessage = async (
   userId: string,
   role: string,
@@ -123,6 +130,9 @@ export const clearChatHistory = async (userId: string) =>
     body: JSON.stringify({ user_id: userId }),
   });
 
+// ==========================================
+// ADMIN & AGENTS
+// ==========================================
 export interface JDAnalysisResponse {
   success: boolean;
   company: string;
@@ -253,6 +263,9 @@ export const generateSchedule = async (
     body: JSON.stringify({ job_id: jobId }),
   });
 
+// ==========================================
+// STUDENT
+// ==========================================
 export interface StudentProfile {
   name: string;
   roll_no: string;
@@ -287,6 +300,9 @@ export const getStudentDashboard =
   async (): Promise<StudentDashboardResponse> =>
     fetchWithAuth("/student/dashboard");
 
+// ==========================================
+// PANELIST
+// ==========================================
 export interface PanelCandidate {
   id: string;
   name: string;
@@ -327,6 +343,9 @@ export const submitInterviewFeedback = async (
     body: JSON.stringify(payload),
   });
 
+// ==========================================
+// RESUME PARSING (OCR + LLM)
+// ==========================================
 import * as pdfjsLib from "pdfjs-dist";
 import Tesseract from "tesseract.js";
 
@@ -340,11 +359,16 @@ export interface ParsedResumeData {
   email: string;
   phone: string;
   cgpa: number | null;
+  raw_cgpa: number | null;
+  gpa_type: string;
   skills: string[];
   education: string[];
+  strong_points: string[];
+  weak_points: string[];
   summary: string;
   extracted_text: string;
 }
+
 export interface ResumeMatchResult {
   success: boolean;
   file_name: string;
@@ -358,88 +382,6 @@ export interface ResumeMatchResult {
   reasons: string[];
   parsed: ParsedResumeData;
 }
-
-// Comprehensive Catalog to prevent regex hallucination
-const skillCatalog = [
-  "Python",
-  "Java",
-  "C++",
-  "C#",
-  "Ruby",
-  "PHP",
-  "JavaScript",
-  "TypeScript",
-  "React",
-  "Angular",
-  "Vue",
-  "Node",
-  "Node.js",
-  "Express",
-  "Django",
-  "Flask",
-  "Spring",
-  "Spring Boot",
-  "SQL",
-  "MySQL",
-  "PostgreSQL",
-  "MongoDB",
-  "Redis",
-  "Firebase",
-  "Git",
-  "GitHub",
-  "Docker",
-  "Kubernetes",
-  "AWS",
-  "Azure",
-  "GCP",
-  "Machine Learning",
-  "Data Structures",
-  "Algorithms",
-  "Power BI",
-  "Tableau",
-  "Excel",
-  "HTML",
-  "CSS",
-  "Tailwind",
-  "Visualforce",
-  "Web Services",
-  "Troubleshooting",
-  "Adobe Photoshop",
-  "Adobe Illustrator",
-  "Adobe After Effects",
-  "Adobe InDesign",
-  "Adobe Premiere Pro",
-  "Facebook",
-  "Instagram",
-  "TikTok",
-];
-
-const normalizeSkill = (skill: string) => {
-  const text = skill.trim();
-  if (!text) return "";
-  const lower = text.toLowerCase();
-  if (
-    lower.includes("node.js") ||
-    lower.includes("node js") ||
-    lower.includes("node")
-  )
-    return "Node.js";
-  if (lower.includes("react.js") || lower.includes("react")) return "React";
-  if (lower.includes("python") || lower.includes("py")) return "Python";
-  if (lower.includes("sql") || lower.includes("structured query")) return "SQL";
-  if (lower.includes("docker")) return "Docker";
-  if (lower.includes("machine learning") || lower.includes("ml"))
-    return "Machine Learning";
-  if (lower.includes("javascript") || lower.includes("js")) return "JavaScript";
-  if (lower.includes("typescript") || lower.includes("ts")) return "TypeScript";
-  if (lower.includes("data structures") || lower.includes("dsa"))
-    return "Data Structures";
-  if (lower.includes("algorithm")) return "Algorithms";
-  if (lower === "c++") return "C++";
-  if (lower.includes("git") && !lower.includes("github")) return "Git";
-  if (lower.includes("mongodb") || lower.includes("mongo db")) return "MongoDB";
-  return text;
-};
 
 const cleanOcrText = (text: string) =>
   text
@@ -516,8 +458,9 @@ const extractTextFromPdf = async (file: File): Promise<string> => {
   );
   const hasGarbledEncoding = /[\ufffd]{2,}/.test(textLayer);
 
-  if (textLayer.length >= 40 && hasValidEmail && !hasGarbledEncoding)
+  if (textLayer.length >= 40 && hasValidEmail && !hasGarbledEncoding) {
     return textLayer;
+  }
 
   const ocrPages: string[] = [];
   for (let i = 1; i <= pdf.numPages; i += 1) {
@@ -554,110 +497,24 @@ const resumeParsingAgent = async (file: File): Promise<string> => {
   const extension = file.name.split(".").pop()?.toLowerCase() || "";
   const fileType = file.type.toLowerCase();
 
-  if (extension === "pdf" || fileType === "application/pdf")
+  if (extension === "pdf" || fileType === "application/pdf") {
     return extractTextFromPdf(file);
+  }
   if (
     fileType.startsWith("image/") ||
     ["png", "jpg", "jpeg", "webp"].includes(extension)
-  )
+  ) {
     return extractTextFromImage(file);
-  if (fileType.startsWith("text/") || ["txt", "md", "csv"].includes(extension))
+  }
+  if (
+    fileType.startsWith("text/") ||
+    ["txt", "md", "csv"].includes(extension)
+  ) {
     return extractTextFromTextFile(file);
+  }
   throw new Error(
     `The file extension (.${extension}) cannot be parsed. Please upload a PDF, Image, or plain text file.`,
   );
-};
-
-const parseResumeText = (text: string): ParsedResumeData => {
-  const lines = text
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-  const emailMatch = text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
-  const phoneMatch = text.match(
-    /(?:\+?\d{1,3}[-.\s]?)?(?:\d{10}|\d{3}[-.\s]\d{3}[-.\s]\d{4})/,
-  );
-
-  let extractedCgpa: number | null = null;
-  const fractionMatch = text.match(
-    /(\d{1,2}(?:\.\d{1,2})?)\s*\/\s*(4\.?0?|5\.?0?|10\.?0?)/,
-  );
-  if (fractionMatch) {
-    const rawVal = Number(fractionMatch[1]);
-    const scale = Number(fractionMatch[2]);
-    if (scale === 4 || scale === 4.0) extractedCgpa = (rawVal / 4.0) * 10;
-    else if (scale === 5 || scale === 5.0) extractedCgpa = (rawVal / 5.0) * 10;
-    else extractedCgpa = rawVal;
-  } else {
-    const cgpaMatch = text.match(
-      /(?:CGPA|Cumulative GPA|GPA)\s*[:=-]?\s*([0-9](?:\.\d{1,2})?)/i,
-    );
-    if (cgpaMatch) {
-      let rawVal = Number(cgpaMatch[1]);
-      if (rawVal <= 4.0) rawVal = (rawVal / 4.0) * 10;
-      else if (rawVal <= 5.0 && rawVal > 4.0) rawVal = (rawVal / 5.0) * 10;
-      extractedCgpa = rawVal;
-    }
-  }
-  if (extractedCgpa !== null) extractedCgpa = Number(extractedCgpa.toFixed(1));
-
-  // Restored strict name extraction for the bottom Profile Box
-  let fallbackName = "Candidate Name";
-  const forbiddenNameKeywords =
-    /(student|engineer|developer|intern|resume|cv|skills|education|experience|contact|phone|email|summary|objective|ak|al|ar|az|ca|co|ct|dc|de|fl|ga|hi|ia|portfolio|profile)/i;
-
-  for (let i = 0; i < Math.min(8, lines.length); i++) {
-    const line = lines[i];
-    if (/[0-9@]/.test(line) || /github|linkedin|\.com/i.test(line)) continue;
-
-    const cleanLine = line.replace(/[^a-zA-Z\s]/g, "").trim();
-    const words = cleanLine.split(/\s+/);
-    if (
-      words.length >= 1 &&
-      words.length <= 4 &&
-      cleanLine.length > 2 &&
-      !forbiddenNameKeywords.test(cleanLine)
-    ) {
-      fallbackName = line.trim();
-      break;
-    }
-  }
-
-  // Strict word boundaries to avoid 'received' hallucinating 'ECE'
-  const education = lines.filter((line) =>
-    /\b(B\.Tech|BTech|M\.Tech|MBA|B\.E|B\.F\.A|BFA|Bachelor|Master|Engineering|Computer Science|CSE|ECE|Arts|Science)\b/i.test(
-      line,
-    ),
-  );
-
-  const skillMatches = new Set<string>();
-
-  skillCatalog.forEach((skill) => {
-    const escapedSkill = skill.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    // Strict non-word boundary checks prevent URLs from firing skills
-    const regex = new RegExp(
-      `(?:^|[^a-zA-Z0-9_])${escapedSkill}(?=[^a-zA-Z0-9_]|$)`,
-      "i",
-    );
-    if (regex.test(text)) {
-      skillMatches.add(normalizeSkill(skill));
-    }
-  });
-
-  const extractedSkills = Array.from(skillMatches).filter(Boolean);
-
-  return {
-    name: fallbackName,
-    email: emailMatch?.[0] || "N/A",
-    phone: phoneMatch?.[0] || "N/A",
-    cgpa: extractedCgpa,
-    skills: [...new Set(extractedSkills.map((s) => normalizeSkill(s)))].filter(
-      Boolean,
-    ),
-    education: education.slice(0, 3),
-    summary: text.slice(0, 220) || "Resume parsed successfully.",
-    extracted_text: text,
-  };
 };
 
 export const parseStudentResume = async (
@@ -665,57 +522,20 @@ export const parseStudentResume = async (
   targetJob: any,
 ): Promise<ResumeMatchResult> => {
   const resumeText = await resumeParsingAgent(file);
-  const parsed = parseResumeText(resumeText);
-  const requiredSkills = [...new Set(targetJob.matched_skills as string[])];
 
-  const normalizedParsedSkills = parsed.skills.map((skill) =>
-    normalizeSkill(skill).toLowerCase(),
-  );
-  const matchedSkills = requiredSkills.filter((skill) => {
-    const normalizedSkill = normalizeSkill(skill).toLowerCase();
-    return normalizedParsedSkills.some(
-      (parsedSkill) =>
-        parsedSkill.includes(normalizedSkill) ||
-        normalizedSkill.includes(parsedSkill),
-    );
+  const response = await fetchWithAuth("/student/parse-resume-llm", {
+    method: "POST",
+    body: JSON.stringify({
+      text: resumeText,
+      company: targetJob.company,
+      role: targetJob.role,
+      matched_skills: targetJob.matched_skills,
+      missing_skills: targetJob.missing_skills,
+    }),
   });
 
-  const missingSkills = requiredSkills.filter(
-    (skill) => !matchedSkills.includes(skill),
-  );
-  const cgpaScore = parsed.cgpa
-    ? Math.max(0, Math.min(100, (parsed.cgpa / 10) * 100))
-    : 0;
-  const skillCoverage = requiredSkills.length
-    ? (matchedSkills.length / requiredSkills.length) * 100
-    : 0;
-  const score = Math.round(cgpaScore * 0.45 + skillCoverage * 0.55);
+  response.parsed.extracted_text = resumeText;
+  response.file_name = file.name;
 
-  let eligibilityStatus: "Eligible" | "Borderline" | "Not Eligible" =
-    "Not Eligible";
-  if (score >= 75 && (parsed.cgpa === null || parsed.cgpa >= 7.0))
-    eligibilityStatus = "Eligible";
-  else if (score >= 55) eligibilityStatus = "Borderline";
-
-  const reasons: string[] = [];
-  if (parsed.cgpa !== null && parsed.cgpa < 7)
-    reasons.push("CGPA below the target eligibility threshold.");
-  if (missingSkills.length > 0)
-    reasons.push(`Missing key skills: ${missingSkills.join(", ")}.`);
-
-  return {
-    success: true,
-    file_name: file.name,
-    company: targetJob.company,
-    role: targetJob.role,
-    required_skills: requiredSkills,
-    matched_skills: matchedSkills,
-    missing_skills: missingSkills,
-    eligibility_score: score,
-    eligibility_status: eligibilityStatus,
-    reasons: reasons.length
-      ? reasons
-      : ["Strong match with the company requirements."],
-    parsed,
-  };
+  return response;
 };

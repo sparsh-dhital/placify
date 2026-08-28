@@ -1,13 +1,14 @@
 # backend/main.py
 import time
 import os
-from fastapi import FastAPI, UploadFile, File
+from html import escape
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import resend
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 # Initialize Resend with your API key from .env
 resend.api_key = os.getenv("RESEND_API_KEY")
@@ -60,11 +61,16 @@ async def root():
 @app.post("/api/contact")
 async def handle_contact_form(form: ContactForm):
     try:
+        safe_name = escape(form.name)
+        safe_email = escape(form.email)
+        safe_message = escape(form.message).replace("\n", "<br>")
+
         # Sends a beautifully styled HTML email via Resend
         params = {
             "from": "Placify Operations <onboarding@resend.dev>",
-            "to": ["251fa04i95@vignan.ac.in"],
-            "subject": f"✨ New Inquiry from {form.name} — Placify Console",
+            "to": ["251fa04i95.sparsh@gmail.com"],
+            "reply_to": form.email,
+            "subject": f"New Inquiry from {safe_name} - Placify Console",
             "html": f"""
                 <div style="background-color: #0f172a; padding: 40px 20px; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
                     <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);">
@@ -86,11 +92,11 @@ async def handle_contact_form(form: ContactForm):
                             <div style="display: table; width: 100%; margin-bottom: 24px;">
                                 <div style="display: table-cell; width: 50%; padding-right: 12px;">
                                     <p style="margin: 0 0 4px 0; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Full Name</p>
-                                    <p style="margin: 0; font-size: 15px; font-weight: 600; color: #0f172a;">{form.name}</p>
+                                    <p style="margin: 0; font-size: 15px; font-weight: 600; color: #0f172a;">{safe_name}</p>
                                 </div>
                                 <div style="display: table-cell; width: 50%; padding-left: 12px;">
                                     <p style="margin: 0 0 4px 0; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Email Address</p>
-                                    <p style="margin: 0; font-size: 15px; font-weight: 600;"><a href="mailto:{form.email}" style="color: #4f46e5; text-decoration: none;">{form.email}</a></p>
+                                    <p style="margin: 0; font-size: 15px; font-weight: 600;"><a href="mailto:{safe_email}" style="color: #4f46e5; text-decoration: none;">{safe_email}</a></p>
                                 </div>
                             </div>
 
@@ -98,7 +104,7 @@ async def handle_contact_form(form: ContactForm):
                             <div style="margin-top: 24px;">
                                 <p style="margin: 0 0 8px 0; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Message Content</p>
                                 <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #4f46e5; padding: 20px; border-radius: 0 16px 16px 0; color: #334155; font-size: 14px; line-height: 1.6;">
-                                    {form.message}
+                                    {safe_message}
                                 </div>
                             </div>
 
@@ -120,10 +126,7 @@ async def handle_contact_form(form: ContactForm):
     
     except Exception as e:
         print(f"Resend Delivery Error: {str(e)}")
-        return {
-            "success": True, 
-            "message": "Contact form received and logged successfully (Simulated delivery)."
-        }
+        raise HTTPException(status_code=502, detail="Email delivery failed. Please try again later.")
 
 @app.post("/api/student/parse-resume")
 async def parse_student_resume(file: UploadFile = File(...)):
