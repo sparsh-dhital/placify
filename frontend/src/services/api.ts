@@ -4,7 +4,7 @@ export const API_URL =
   import.meta.env.VITE_API_URL || "https://placify-o7ci.onrender.com/api";
 
 // ==========================================
-// SECURITY HELPER: Auto-inject JWT Tokens
+// SECURITY & ERROR HELPER
 // ==========================================
 const fetchWithAuth = async (endpoint: string, options: RequestInit = {}) => {
   const token = localStorage.getItem("placify_token");
@@ -17,31 +17,59 @@ const fetchWithAuth = async (endpoint: string, options: RequestInit = {}) => {
     ...options,
     headers,
   });
+
   if (!response.ok) {
     if (response.status === 401 || response.status === 403) {
       localStorage.removeItem("placify_token");
       localStorage.removeItem("placify_user");
       window.location.href = "/login";
     }
+
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.detail || `Server error: ${response.status}`);
+    let errMsg = errorData.detail || `Server error: ${response.status}`;
+
+    // FIX: Parse FastAPI Validation Arrays to prevent [object Object] errors
+    if (Array.isArray(errMsg)) {
+      errMsg = errMsg
+        .map((e: any) => `${e.loc?.slice(-1)[0] || "Field"}: ${e.msg}`)
+        .join(" | ");
+    }
+
+    throw new Error(
+      typeof errMsg === "string" ? errMsg : JSON.stringify(errMsg),
+    );
   }
   return response.json();
 };
 
 // ==========================================
-// GENERIC API HELPERS
+// DATA SANITIZER
 // ==========================================
-export const apiGet = async (endpoint: string) => {
-  return fetchWithAuth(endpoint);
+export const sanitizeStringArray = (arr: any): string[] => {
+  if (!Array.isArray(arr)) return [];
+  return arr
+    .map((item) => {
+      if (typeof item === "string") return item;
+      if (typeof item === "object" && item !== null) {
+        return (
+          item.skill ||
+          item.name ||
+          item.title ||
+          Object.values(item)[0] ||
+          JSON.stringify(item)
+        );
+      }
+      return String(item);
+    })
+    .filter(Boolean);
 };
 
-export const apiPost = async (endpoint: string, data: any) => {
-  return fetchWithAuth(endpoint, {
-    method: "POST",
-    body: JSON.stringify(data),
-  });
-};
+// ==========================================
+// GENERIC API HELPERS
+// ==========================================
+export const apiGet = async (endpoint: string) => fetchWithAuth(endpoint);
+export const apiPost = async (endpoint: string, data: any) =>
+  fetchWithAuth(endpoint, { method: "POST", body: JSON.stringify(data) });
 
 // ==========================================
 // AUTHENTICATION
@@ -50,76 +78,26 @@ export async function loginUser(credentials: {
   email: string;
   password: string;
 }) {
-  const response = await fetch(`${API_URL}/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(credentials),
-  });
-  if (!response.ok)
-    throw new Error((await response.json()).detail || "Login failed");
-  return response.json();
+  return apiPost("/auth/login", credentials);
 }
 export async function requestSignupOtp(email: string) {
-  const response = await fetch(`${API_URL}/auth/signup/request-otp`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email }),
-  });
-  if (!response.ok)
-    throw new Error((await response.json()).detail || "Failed to send code");
-  return response.json();
+  return apiPost("/auth/signup/request-otp", { email });
 }
 export async function verifySignupOtp(data: any) {
-  const response = await fetch(`${API_URL}/auth/signup/verify`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-  });
-  if (!response.ok)
-    throw new Error(
-      (await response.json()).detail || "Failed to create account",
-    );
-  return response.json();
+  return apiPost("/auth/signup/verify", data);
 }
 export async function requestPasswordResetOtp(email: string) {
-  const response = await fetch(`${API_URL}/auth/forgot-password/request-otp`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email }),
-  });
-  if (!response.ok)
-    throw new Error(
-      (await response.json()).detail || "Failed to send reset code",
-    );
-  return response.json();
+  return apiPost("/auth/forgot-password/request-otp", { email });
 }
 export async function resetPassword(data: any) {
-  const response = await fetch(`${API_URL}/auth/forgot-password/reset`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-  });
-  if (!response.ok)
-    throw new Error(
-      (await response.json()).detail || "Failed to reset password",
-    );
-  return response.json();
+  return apiPost("/auth/forgot-password/reset", data);
 }
 export async function verifyOAuthCode(
   code: string,
   provider: string,
   role: string,
 ) {
-  const response = await fetch(`${API_URL}/auth/oauth/callback`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ code, provider, role }),
-  });
-  if (!response.ok)
-    throw new Error(
-      (await response.json()).detail || "OAuth verification failed",
-    );
-  return response.json();
+  return apiPost("/auth/oauth/callback", { code, provider, role });
 }
 
 // ==========================================
@@ -129,23 +107,13 @@ export const sendChatMessage = async (
   userId: string,
   role: string,
   message: string,
-) =>
-  fetchWithAuth("/chat/analyze", {
-    method: "POST",
-    body: JSON.stringify({ user_id: userId, role, message }),
-  });
+) => apiPost("/chat/analyze", { user_id: userId, role, message });
 export const getChatHistory = async (userId: string) =>
-  fetchWithAuth(`/chat/history?user_id=${encodeURIComponent(userId)}`);
+  apiGet(`/chat/history?user_id=${encodeURIComponent(userId)}`);
 export const deleteChatMessage = async (messageId: string) =>
-  fetchWithAuth("/chat/delete-message", {
-    method: "POST",
-    body: JSON.stringify({ message_id: messageId }),
-  });
+  apiPost("/chat/delete-message", { message_id: messageId });
 export const clearChatHistory = async (userId: string) =>
-  fetchWithAuth("/chat/clear", {
-    method: "POST",
-    body: JSON.stringify({ user_id: userId }),
-  });
+  apiPost("/chat/clear", { user_id: userId });
 
 // ==========================================
 // ADMIN & AGENTS
@@ -181,9 +149,8 @@ export interface AdminDashboardMetrics {
     open_exceptions: number;
   };
 }
-
 export const getAdminMetrics = async (): Promise<AdminDashboardMetrics> =>
-  fetchWithAuth("/admin/metrics");
+  apiGet("/admin/metrics");
 
 export interface JobRecord {
   job_id: string;
@@ -196,17 +163,12 @@ export interface JobRecord {
   preferred_skills?: string[];
   salary?: string;
 }
-
 export const getActiveJobs = async (): Promise<{
   success: boolean;
   jobs: JobRecord[];
-}> => fetchWithAuth("/admin/jobs");
-
+}> => apiGet("/admin/jobs");
 export const publishActiveJob = async (jobData: { text: string }) =>
-  fetchWithAuth("/admin/jobs/publish", {
-    method: "POST",
-    body: JSON.stringify(jobData),
-  });
+  apiPost("/admin/jobs/publish", jobData);
 
 export interface JDAnalysisResponse {
   success: boolean;
@@ -220,10 +182,7 @@ export interface JDAnalysisResponse {
   ai_confidence?: number;
 }
 export const analyzeJD = async (text: string): Promise<JDAnalysisResponse> =>
-  fetchWithAuth("/admin/jd/analyze", {
-    method: "POST",
-    body: JSON.stringify({ text }),
-  });
+  apiPost("/admin/jd/analyze", { text });
 export const analyzeJDFile = async (
   file: File,
 ): Promise<JDAnalysisResponse> => {
@@ -259,10 +218,7 @@ export interface EligibilityResponse {
 export const runEligibility = async (
   jobId: string,
 ): Promise<EligibilityResponse> =>
-  fetchWithAuth("/admin/eligibility/run", {
-    method: "POST",
-    body: JSON.stringify({ job_id: jobId }),
-  });
+  apiPost("/admin/eligibility/run", { job_id: jobId });
 
 export interface MatchResult {
   student_id: string;
@@ -283,10 +239,7 @@ export interface MatchResponse {
   matches: MatchResult[];
 }
 export const generateMatches = async (jobId: string): Promise<MatchResponse> =>
-  fetchWithAuth("/admin/matches/generate", {
-    method: "POST",
-    body: JSON.stringify({ job_id: jobId }),
-  });
+  apiPost("/admin/matches/generate", { job_id: jobId });
 
 export interface ShortlistDecision {
   student_id: string;
@@ -303,10 +256,7 @@ export const submitShortlistApproval = async (
   jobId: string,
   decisions: ShortlistDecision[],
 ): Promise<ShortlistSubmitResponse> =>
-  fetchWithAuth("/admin/shortlist/approve", {
-    method: "POST",
-    body: JSON.stringify({ job_id: jobId, decisions }),
-  });
+  apiPost("/admin/shortlist/approve", { job_id: jobId, decisions });
 
 export interface ScheduleItem {
   id: string;
@@ -333,10 +283,7 @@ export interface ScheduleResponse {
 export const generateSchedule = async (
   jobId: string,
 ): Promise<ScheduleResponse> =>
-  fetchWithAuth("/admin/schedule/generate", {
-    method: "POST",
-    body: JSON.stringify({ job_id: jobId }),
-  });
+  apiPost("/admin/schedule/generate", { job_id: jobId });
 
 // ==========================================
 // STUDENT
@@ -347,6 +294,7 @@ export interface StudentProfile {
   branch: string;
   cgpa: number;
   readiness_score: number;
+  skills?: string[];
 }
 export interface UpcomingInterview {
   company: string;
@@ -363,6 +311,10 @@ export interface JobMatch {
   match_score: number;
   matched_skills: string[];
   missing_skills: string[];
+  required_skills?: string[];
+  description?: string;
+  min_cgpa?: number;
+  max_backlogs?: number;
 }
 export interface StudentDashboardResponse {
   success: boolean;
@@ -371,9 +323,20 @@ export interface StudentDashboardResponse {
   job_matches: JobMatch[];
   ai_recommendations: string[];
 }
+
 export const getStudentDashboard =
-  async (): Promise<StudentDashboardResponse> =>
-    fetchWithAuth("/student/dashboard");
+  async (): Promise<StudentDashboardResponse> => {
+    const response = await apiGet("/student/dashboard");
+    if (response.job_matches && Array.isArray(response.job_matches)) {
+      response.job_matches = response.job_matches.map((match: any) => ({
+        ...match,
+        matched_skills: sanitizeStringArray(match.matched_skills),
+        missing_skills: sanitizeStringArray(match.missing_skills),
+        required_skills: sanitizeStringArray(match.required_skills),
+      }));
+    }
+    return response;
+  };
 
 // ==========================================
 // PANELIST
@@ -409,14 +372,11 @@ export interface FeedbackPayload {
   comments: string;
 }
 export const getPanelInterviews = async (): Promise<PanelDashboardResponse> =>
-  fetchWithAuth("/panel/today");
+  apiGet("/panel/today");
 export const submitInterviewFeedback = async (
   payload: FeedbackPayload,
 ): Promise<{ success: boolean; message: string }> =>
-  fetchWithAuth("/panel/feedback", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+  apiPost("/panel/feedback", payload);
 
 // ==========================================
 // RESUME PARSING (OCR + LLM)
@@ -443,7 +403,6 @@ export interface ParsedResumeData {
   summary: string;
   extracted_text: string;
 }
-
 export interface ResumeMatchResult {
   success: boolean;
   file_name: string;
@@ -466,7 +425,6 @@ const cleanOcrText = (text: string) =>
     .join("")
     .replace(/[ ]{2,}/g, " ")
     .trim();
-
 const recognizeCanvasText = async (canvas: HTMLCanvasElement) => {
   const result = await Tesseract.recognize(canvas, "eng", {
     logger: () => undefined,
@@ -479,36 +437,44 @@ const extractTextFromImage = async (file: File): Promise<string> => {
     const img = new Image();
     img.onload = async () => {
       const canvas = document.createElement("canvas");
-      const scale = 2;
-      canvas.width = img.width * scale;
-      canvas.height = img.height * scale;
+      canvas.width = img.width * 2;
+      canvas.height = img.height * 2;
       const ctx = canvas.getContext("2d");
-
       if (ctx) {
         ctx.imageSmoothingEnabled = true;
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         try {
-          const text = await recognizeCanvasText(canvas);
-          resolve(text);
+          resolve(await recognizeCanvasText(canvas));
         } catch {
-          const result = await Tesseract.recognize(file, "eng", {
-            logger: () => undefined,
-          });
-          resolve(cleanOcrText(result.data.text || ""));
+          resolve(
+            cleanOcrText(
+              (
+                await Tesseract.recognize(file, "eng", {
+                  logger: () => undefined,
+                })
+              ).data.text || "",
+            ),
+          );
         }
       } else {
-        const result = await Tesseract.recognize(file, "eng", {
-          logger: () => undefined,
-        });
-        resolve(cleanOcrText(result.data.text || ""));
+        resolve(
+          cleanOcrText(
+            (
+              await Tesseract.recognize(file, "eng", {
+                logger: () => undefined,
+              })
+            ).data.text || "",
+          ),
+        );
       }
     };
-    img.onerror = async () => {
-      const result = await Tesseract.recognize(file, "eng", {
-        logger: () => undefined,
-      });
-      resolve(cleanOcrText(result.data.text || ""));
-    };
+    img.onerror = async () =>
+      resolve(
+        cleanOcrText(
+          (await Tesseract.recognize(file, "eng", { logger: () => undefined }))
+            .data.text || "",
+        ),
+      );
     img.src = URL.createObjectURL(file);
   });
 };
@@ -517,23 +483,19 @@ const extractTextFromPdf = async (file: File): Promise<string> => {
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
   const pages: string[] = [];
-
   for (let i = 1; i <= pdf.numPages; i += 1) {
     const page = await pdf.getPage(i);
     const content = await page.getTextContent();
-    const pageText = content.items
-      .map((item) => ("str" in item ? item.str : ""))
-      .join(" ");
-    pages.push(pageText);
+    pages.push(
+      content.items.map((item) => ("str" in item ? item.str : "")).join(" "),
+    );
   }
-
   const textLayer = pages.join("\n").trim();
-  const hasValidEmail = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(
-    textLayer,
-  );
-  const hasGarbledEncoding = /[\ufffd]{2,}/.test(textLayer);
-
-  if (textLayer.length >= 40 && hasValidEmail && !hasGarbledEncoding)
+  if (
+    textLayer.length >= 40 &&
+    /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(textLayer) &&
+    !/[\ufffd]{2,}/.test(textLayer)
+  )
     return textLayer;
 
   const ocrPages: string[] = [];
@@ -549,17 +511,18 @@ const extractTextFromPdf = async (file: File): Promise<string> => {
     const text = await recognizeCanvasText(canvas);
     if (text) ocrPages.push(text);
   }
-
   const cleanedOcr = ocrPages.filter(Boolean).join("\n");
   return cleanedOcr.length > 20 ? cleanedOcr : textLayer;
 };
 
 const extractTextFromTextFile = async (file: File): Promise<string> => {
   const text = await file.text();
-  const nonPrintableCount = (
-    text.match(/[\x00-\x08\x0B\x0C\x0E-\x1F\uFFFD]/g) || []
-  ).length;
-  if (text.length > 0 && nonPrintableCount / text.length > 0.05) {
+  if (
+    text.length > 0 &&
+    (text.match(/[\x00-\x08\x0B\x0C\x0E-\x1F\uFFFD]/g) || []).length /
+      text.length >
+      0.05
+  ) {
     throw new Error(
       "Unsupported binary format detected. Please upload a standard PDF, Image, or plain text document.",
     );
@@ -568,41 +531,62 @@ const extractTextFromTextFile = async (file: File): Promise<string> => {
 };
 
 const resumeParsingAgent = async (file: File): Promise<string> => {
-  const extension = file.name.split(".").pop()?.toLowerCase() || "";
-  const fileType = file.type.toLowerCase();
-
-  if (extension === "pdf" || fileType === "application/pdf")
+  const ext = file.name.split(".").pop()?.toLowerCase() || "";
+  const type = file.type.toLowerCase();
+  if (ext === "pdf" || type === "application/pdf")
     return extractTextFromPdf(file);
-  if (
-    fileType.startsWith("image/") ||
-    ["png", "jpg", "jpeg", "webp"].includes(extension)
-  )
+  if (type.startsWith("image/") || ["png", "jpg", "jpeg", "webp"].includes(ext))
     return extractTextFromImage(file);
-  if (fileType.startsWith("text/") || ["txt", "md", "csv"].includes(extension))
+  if (type.startsWith("text/") || ["txt", "md", "csv"].includes(ext))
     return extractTextFromTextFile(file);
   throw new Error(
-    `The file extension (.${extension}) cannot be parsed. Please upload a PDF, Image, or plain text file.`,
+    `The file extension (.${ext}) cannot be parsed. Please upload a PDF, Image, or plain text file.`,
   );
 };
 
+// ==========================================
+// DYNAMIC RESUME PARSING
+// ==========================================
 export const parseStudentResume = async (
   file: File,
-  targetJob: any,
+  targetJob?: {
+    company: string;
+    role: string;
+    matched_skills: string[];
+    missing_skills: string[];
+  },
 ): Promise<ResumeMatchResult> => {
   const resumeText = await resumeParsingAgent(file);
 
+  // Safe fallback to prevent backend 'undefined' errors if a job isn't currently active
+  const payload = {
+    text: resumeText,
+    company: targetJob?.company || "Global Evaluator",
+    role: targetJob?.role || "General Applicant",
+    matched_skills: targetJob?.matched_skills || [],
+    missing_skills: targetJob?.missing_skills || [],
+  };
+
   const response = await fetchWithAuth("/student/parse-resume-llm", {
     method: "POST",
-    body: JSON.stringify({
-      text: resumeText,
-      company: targetJob.company,
-      role: targetJob.role,
-      matched_skills: targetJob.matched_skills,
-      missing_skills: targetJob.missing_skills,
-    }),
+    body: JSON.stringify(payload),
   });
 
-  response.parsed.extracted_text = resumeText;
+  if (response && response.parsed) {
+    response.parsed.extracted_text = resumeText;
+    response.parsed.skills = sanitizeStringArray(response.parsed.skills);
+    response.parsed.education = sanitizeStringArray(response.parsed.education);
+    response.parsed.strong_points = sanitizeStringArray(
+      response.parsed.strong_points,
+    );
+    response.parsed.weak_points = sanitizeStringArray(
+      response.parsed.weak_points,
+    );
+  }
+
+  response.matched_skills = sanitizeStringArray(response.matched_skills);
+  response.missing_skills = sanitizeStringArray(response.missing_skills);
+  response.required_skills = sanitizeStringArray(response.required_skills);
   response.file_name = file.name;
 
   return response;

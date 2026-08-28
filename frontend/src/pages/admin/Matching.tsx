@@ -60,7 +60,7 @@ export default function Matching() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12">
       {/* Header & Agent Trigger */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
@@ -81,7 +81,7 @@ export default function Matching() {
             <select
               value={selectedJobId}
               onChange={(e) => setSelectedJobId(e.target.value)}
-              className="bg-white dark:bg-[#0A0A12] border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+              className="bg-white dark:bg-[#0A0A12] border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-sm"
             >
               {activeJobs.map((j) => (
                 <option key={j.job_id} value={j.job_id}>
@@ -203,9 +203,10 @@ export default function Matching() {
           {/* Explainability Panel (Right Column) */}
           <div className="bg-white dark:bg-[#0A0A12]/80 backdrop-blur-2xl border border-slate-200 dark:border-white/10 rounded-[2rem] shadow-xl shadow-slate-900/5 p-6 h-fit sticky top-24">
             <h3 className="text-sm font-semibold text-slate-900 dark:text-white mb-6 uppercase tracking-wider flex items-center gap-2">
-              <Target className="w-4 h-4 text-indigo-500" aria-hidden="true" />
+              <Target className="w-4 h-4 text-indigo-500" aria-hidden="true" />{" "}
               Match Explanation
             </h3>
+
             {selectedMatch ? (
               <div className="space-y-6 animate-in fade-in">
                 <div className="flex justify-between items-start pb-4 border-b border-slate-200 dark:border-white/10">
@@ -255,6 +256,7 @@ export default function Matching() {
                       ))}
                     </div>
                   </div>
+
                   {selectedMatch.missing_skills.length > 0 && (
                     <div>
                       <p className="text-xs font-bold text-red-600 dark:text-red-400 uppercase tracking-wider mb-2">

@@ -53,7 +53,7 @@ export default function Eligibility() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12">
       {/* Header & Agent Trigger */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
@@ -62,7 +62,7 @@ export default function Eligibility() {
             Eligibility Agent
           </h1>
           <p className="text-slate-600 dark:text-slate-400 mt-2 text-sm max-w-xl">
-            Evaluate registered student registers against active job constraints
+            Evaluate registered student profiles against active job constraints
             (CGPA, Backlogs) in real-time.
           </p>
         </div>
@@ -71,7 +71,7 @@ export default function Eligibility() {
             <select
               value={selectedJobId}
               onChange={(e) => setSelectedJobId(e.target.value)}
-              className="bg-white dark:bg-[#0A0A12] border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+              className="bg-white dark:bg-[#0A0A12] border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-sm"
             >
               {activeJobs.map((j) => (
                 <option key={j.job_id} value={j.job_id}>
@@ -134,6 +134,7 @@ export default function Eligibility() {
                 <Users className="w-5 h-5 text-indigo-500" aria-hidden="true" />
               </div>
             </div>
+
             <div className="bg-white dark:bg-[#0A0A12]/80 backdrop-blur-xl border border-emerald-200/50 dark:border-emerald-500/20 rounded-2xl p-5 shadow-sm flex items-center justify-between">
               <div>
                 <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-1">
@@ -150,6 +151,7 @@ export default function Eligibility() {
                 />
               </div>
             </div>
+
             <div className="bg-white dark:bg-[#0A0A12]/80 backdrop-blur-xl border border-red-200/50 dark:border-red-500/20 rounded-2xl p-5 shadow-sm flex items-center justify-between">
               <div>
                 <p className="text-xs font-semibold text-red-600 dark:text-red-400 uppercase tracking-wider mb-1">
@@ -193,7 +195,11 @@ export default function Eligibility() {
                       <tr
                         key={student.student_id}
                         onClick={() => setSelectedStudent(student)}
-                        className={`group hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-none ${selectedStudent?.student_id === student.student_id ? "bg-indigo-50/50 dark:bg-indigo-500/10" : ""}`}
+                        className={`group hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-none ${
+                          selectedStudent?.student_id === student.student_id
+                            ? "bg-indigo-50/50 dark:bg-indigo-500/10"
+                            : ""
+                        }`}
                         role="row"
                         tabIndex={0}
                         aria-selected={
@@ -207,15 +213,19 @@ export default function Eligibility() {
                             aria-hidden="true"
                           />
                         </td>
-                        <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
+                        <td className="px-6 py-4 text-slate-600 dark:text-slate-300 font-mono">
                           {student.cgpa}
                         </td>
-                        <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
+                        <td className="px-6 py-4 text-slate-600 dark:text-slate-300 font-mono">
                           {student.backlogs}
                         </td>
                         <td className="px-6 py-4">
                           <span
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wide uppercase ${student.eligible ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20" : "bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400 border border-red-200 dark:border-red-500/20"}`}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wide uppercase ${
+                              student.eligible
+                                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20"
+                                : "bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400 border border-red-200 dark:border-red-500/20"
+                            }`}
                           >
                             {student.eligible ? (
                               <CheckCircle2 className="w-3.5 h-3.5" />
@@ -241,6 +251,7 @@ export default function Eligibility() {
                 />
                 Explanation Log
               </h3>
+
               {selectedStudent ? (
                 <div className="space-y-6 animate-in fade-in">
                   <div>
@@ -248,13 +259,18 @@ export default function Eligibility() {
                       {selectedStudent.student_name}
                     </p>
                     <p
-                      className={`text-sm font-semibold mt-1 ${selectedStudent.eligible ? "text-emerald-500" : "text-red-500"}`}
+                      className={`text-sm font-semibold mt-1 ${
+                        selectedStudent.eligible
+                          ? "text-emerald-500"
+                          : "text-red-500"
+                      }`}
                     >
                       {selectedStudent.eligible
                         ? "✓ Meets all constraints"
                         : "✗ Failed constraints"}
                     </p>
                   </div>
+
                   <div className="space-y-3">
                     <div className="flex justify-between p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 text-sm">
                       <span className="text-slate-500">CGPA Log</span>
@@ -269,6 +285,7 @@ export default function Eligibility() {
                       </span>
                     </div>
                   </div>
+
                   {!selectedStudent.eligible &&
                     selectedStudent.reasons.length > 0 && (
                       <div className="p-4 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20">

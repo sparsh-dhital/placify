@@ -102,8 +102,10 @@ export default function Shortlist() {
     if (!selectedJobId) return;
     setIsSubmitting(true);
     try {
-      const payload = Object.values(decisions);
-      const result = await submitShortlistApproval(selectedJobId, payload);
+      const result = await submitShortlistApproval(
+        selectedJobId,
+        Object.values(decisions),
+      );
       alert(
         `Success! ${result.message}\nApproved: ${result.approved_count}\nRejected: ${result.rejected_count}`,
       );

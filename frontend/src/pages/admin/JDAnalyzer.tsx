@@ -1,6 +1,6 @@
 // frontend/src/pages/admin/JDAnalyzer.tsx
-import { useState, useEffect } from "react";
-import type { ChangeEvent } from "react";
+import { useState, useRef, useEffect } from "react";
+import type { ChangeEvent, DragEvent } from "react";
 import {
   UploadCloud,
   FileText,
@@ -9,17 +9,24 @@ import {
   Wand2,
   Eye,
   Trash2,
+  AlertCircle,
+  BrainCircuit,
 } from "lucide-react";
 import { analyzeJD, analyzeJDFile, publishActiveJob } from "../../services/api";
 import type { JDAnalysisResponse } from "../../services/api";
 
 export default function JDAnalyzer() {
+  const [activeTab, setActiveTab] = useState<"upload" | "paste">("upload");
   const [jdText, setJdText] = useState("");
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [result, setResult] = useState<JDAnalysisResponse | null>(null);
-  const [selectedFileName, setSelectedFileName] = useState("");
+  const [file, setFile] = useState<File | null>(null);
   const [fileUrl, setFileUrl] = useState<string | null>(null);
+
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [result, setResult] = useState<JDAnalysisResponse | null>(null);
   const [error, setError] = useState("");
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     return () => {
@@ -27,77 +34,39 @@ export default function JDAnalyzer() {
     };
   }, [fileUrl]);
 
-  const handleAnalyze = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!jdText.trim()) return;
-    setIsAnalyzing(true);
-    setError("");
-    try {
-      const data = await analyzeJD(jdText);
-      setResult(data);
-    } catch (error) {
-      console.error(error);
-      setError(
-        error instanceof Error
-          ? error.message
-          : "Unable to analyze the job description.",
-      );
-    } finally {
-      setIsAnalyzing(false);
-    }
-  };
+  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = event.target.files?.[0];
+    if (!selectedFile) return;
 
-  const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    setSelectedFileName(file.name);
+    setFile(selectedFile);
     setError("");
-    setIsAnalyzing(true);
+    setResult(null);
 
     if (fileUrl) URL.revokeObjectURL(fileUrl);
-    const newFileUrl = URL.createObjectURL(file);
-    setFileUrl(newFileUrl);
+    setFileUrl(URL.createObjectURL(selectedFile));
 
-    try {
-      const analysis = await analyzeJDFile(file);
-      setResult(analysis);
+    event.target.value = ""; // Reset input
+  };
 
-      const formattedText = `Company: ${analysis.company}
-Role: ${analysis.role}
-Salary Package: ${analysis.salary}
+  const handleDragOver = (e: DragEvent) => {
+    e.preventDefault();
+  };
 
-Eligibility Criteria:
-- Minimum CGPA: ${analysis.min_cgpa}
-- Maximum Active Backlogs: ${analysis.max_backlogs}
-
-Required Skills:
-${analysis.required_skills.map((s) => `- ${s}`).join("\n")}
-
-Preferred Skills:
-${analysis.preferred_skills.map((s) => `- ${s}`).join("\n")}
-`;
-      setJdText(formattedText);
-    } catch (fileError) {
-      console.error(fileError);
-      setError(
-        fileError instanceof Error
-          ? fileError.message
-          : "Unable to read this file.",
-      );
+  const handleDrop = (e: DragEvent) => {
+    e.preventDefault();
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const droppedFile = e.dataTransfer.files[0];
+      setFile(droppedFile);
+      setError("");
       setResult(null);
-      setSelectedFileName("");
-      if (newFileUrl) {
-        URL.revokeObjectURL(newFileUrl);
-        setFileUrl(null);
-      }
-    } finally {
-      setIsAnalyzing(false);
-      event.target.value = "";
+
+      if (fileUrl) URL.revokeObjectURL(fileUrl);
+      setFileUrl(URL.createObjectURL(droppedFile));
     }
   };
 
   const handleRemoveFile = () => {
-    setSelectedFileName("");
+    setFile(null);
     setResult(null);
     setJdText("");
     setError("");
@@ -107,7 +76,43 @@ ${analysis.preferred_skills.map((s) => `- ${s}`).join("\n")}
     }
   };
 
+  const handleAnalyze = async () => {
+    if (activeTab === "upload" && !file) {
+      setError("Please upload a JD document first.");
+      return;
+    }
+    if (activeTab === "paste" && !jdText.trim()) {
+      setError("Please paste a valid job description.");
+      return;
+    }
+
+    setIsAnalyzing(true);
+    setError("");
+    setResult(null);
+
+    try {
+      let analysis: JDAnalysisResponse;
+
+      if (activeTab === "upload" && file) {
+        analysis = await analyzeJDFile(file);
+        // Auto-generate text representation for publishing
+        const formattedText = `Company: ${analysis.company}\nRole: ${analysis.role}\nSalary Package: ${analysis.salary}\n\nEligibility Criteria:\n- Minimum CGPA: ${analysis.min_cgpa}\n- Maximum Active Backlogs: ${analysis.max_backlogs}\n\nRequired Skills:\n${analysis.required_skills.map((s) => `- ${s}`).join("\n")}\n\nPreferred Skills:\n${analysis.preferred_skills.map((s) => `- ${s}`).join("\n")}`;
+        setJdText(formattedText);
+      } else {
+        analysis = await analyzeJD(jdText);
+      }
+
+      setResult(analysis);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Unable to analyze the job description.");
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
   const handlePublish = async () => {
+    setIsPublishing(true);
     try {
       await publishActiveJob({ text: jdText });
       alert(
@@ -115,136 +120,170 @@ ${analysis.preferred_skills.map((s) => `- ${s}`).join("\n")}
       );
     } catch (err: any) {
       alert("Failed to publish job: " + err.message);
+    } finally {
+      setIsPublishing(false);
     }
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12">
+    <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12">
+      {/* Header */}
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
-          <Wand2 className="w-7 h-7 text-indigo-500" />
-          AI Job Description Analyzer
+          <BrainCircuit
+            className="w-7 h-7 text-indigo-500"
+            aria-hidden="true"
+          />
+          JD Extraction Engine
         </h1>
-        <p className="text-slate-600 dark:text-slate-400 mt-2 text-sm">
+        <p className="text-slate-600 dark:text-slate-400 mt-2 text-sm max-w-xl">
           Upload a company's JD to automatically extract hard requirements,
-          skills, and eligibility criteria.
+          skills, and eligibility criteria before publishing to student portals.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-        {/* Left Column */}
-        <div className="bg-white dark:bg-[#0A0A12]/80 backdrop-blur-2xl border border-slate-200 dark:border-white/10 rounded-[2rem] p-6 sm:p-8 shadow-xl shadow-slate-900/5">
-          <form onSubmit={handleAnalyze} className="flex flex-col">
-            {!selectedFileName || isAnalyzing ? (
-              <label className="border-2 border-dashed border-slate-300 dark:border-white/20 rounded-2xl p-8 flex flex-col items-center justify-center text-center bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors cursor-pointer mb-6">
-                <UploadCloud
-                  className={`w-10 h-10 mb-4 ${isAnalyzing ? "text-indigo-400 animate-pulse" : "text-indigo-500"}`}
-                />
-                <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                  {isAnalyzing
-                    ? "Analyzing Document..."
-                    : "Drag & Drop JD Document"}
-                </p>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  Supports PDF, TXT, MD, CSV, and Images
-                </p>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        {/* Input Panel */}
+        <div className="bg-white dark:bg-[#0A0A12]/80 backdrop-blur-2xl border border-slate-200 dark:border-white/10 rounded-[2rem] shadow-xl shadow-slate-900/5 overflow-hidden flex flex-col">
+          <div className="p-6 border-b border-slate-200 dark:border-white/10 flex items-center justify-between">
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+              Data Source
+            </h2>
+            <div className="flex p-1 bg-slate-100 dark:bg-[#05050A] rounded-xl border border-slate-200 dark:border-white/5">
+              <button
+                onClick={() => setActiveTab("upload")}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-none ${
+                  activeTab === "upload"
+                    ? "bg-white dark:bg-white/10 text-indigo-600 dark:text-indigo-400 shadow-sm"
+                    : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                }`}
+              >
+                Upload File
+              </button>
+              <button
+                onClick={() => setActiveTab("paste")}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-none ${
+                  activeTab === "paste"
+                    ? "bg-white dark:bg-white/10 text-indigo-600 dark:text-indigo-400 shadow-sm"
+                    : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                }`}
+              >
+                Paste Text
+              </button>
+            </div>
+          </div>
+
+          <div className="p-6 flex-1 flex flex-col">
+            {activeTab === "upload" ? (
+              <div
+                onDragOver={handleDragOver}
+                onDrop={handleDrop}
+                onClick={() => !file && fileInputRef.current?.click()}
+                className={`flex-1 min-h-[250px] border-2 border-dashed rounded-2xl flex flex-col items-center justify-center p-6 transition-all cursor-pointer group ${
+                  file
+                    ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-500/5"
+                    : "border-slate-300 dark:border-slate-700 hover:border-indigo-400 hover:bg-slate-50 dark:hover:bg-white/5"
+                }`}
+              >
                 <input
                   type="file"
-                  accept=".pdf,.txt,.md,.csv,application/pdf,text/plain,image/*"
-                  className="hidden"
+                  ref={fileInputRef}
                   onChange={handleFileChange}
+                  accept=".pdf,.txt,.md,.csv,image/*"
+                  className="hidden"
                   disabled={isAnalyzing}
                 />
-              </label>
+                {file ? (
+                  <div className="text-center w-full">
+                    <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <CheckCircle2 className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                    <p className="text-sm font-bold text-slate-900 dark:text-white mb-1 truncate px-4">
+                      {file.name}
+                    </p>
+                    <p className="text-xs text-slate-500 mb-4">
+                      {(file.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
+
+                    <div className="flex items-center justify-center gap-2">
+                      <a
+                        href={fileUrl || "#"}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-xs font-bold rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-colors"
+                      >
+                        <Eye className="w-3.5 h-3.5" /> View
+                      </a>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveFile();
+                        }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 text-xs font-bold rounded-lg hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" /> Remove
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center">
+                    <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-[#05050A] flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                      <UploadCloud className="w-8 h-8 text-slate-400 dark:text-slate-500" />
+                    </div>
+                    <p className="text-sm font-bold text-slate-900 dark:text-white mb-1">
+                      Drag & Drop JD Document
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      Supports PDF, TXT, MD, CSV, and Images
+                    </p>
+                  </div>
+                )}
+              </div>
             ) : (
-              <div className="mb-6 p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-emerald-200 dark:border-emerald-500/30 text-center space-y-3">
-                <div className="w-10 h-10 bg-emerald-100 dark:bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                </div>
-                <p className="text-sm font-bold text-slate-900 dark:text-white">
-                  Document Successfully Analyzed
-                </p>
-                <div className="flex items-center justify-between p-3 bg-white dark:bg-[#05050A] border border-slate-200 dark:border-white/10 rounded-xl shadow-sm">
-                  <a
-                    href={fileUrl || "#"}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-3 overflow-hidden flex-1 p-1 hover:opacity-80 transition-opacity text-left cursor-pointer"
-                    title="Tap to view uploaded file"
-                  >
-                    <div className="p-2 bg-indigo-100 dark:bg-indigo-500/20 rounded-lg text-indigo-600 dark:text-indigo-400 shrink-0">
-                      <FileText className="w-4 h-4" />
-                    </div>
-                    <div className="truncate">
-                      <p className="text-xs font-bold text-slate-900 dark:text-white truncate flex items-center gap-1.5">
-                        {selectedFileName}{" "}
-                        <Eye className="w-3 h-3 text-slate-400" />
-                      </p>
-                      <p className="text-[10px] text-slate-500">
-                        Tap to view document
-                      </p>
-                    </div>
-                  </a>
-                  <button
-                    type="button"
-                    onClick={handleRemoveFile}
-                    className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer ml-2 border-l border-slate-200 dark:border-white/10 pl-2"
-                    title="Remove Document"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
+              <div className="relative pointer-events-auto">
+                <textarea
+                  value={jdText}
+                  onChange={(e) => setJdText(e.target.value)}
+                  placeholder="Paste Job Description text here..."
+                  rows={10}
+                  data-lenis-prevent="true"
+                  className="w-full h-[250px] p-4 bg-slate-50 dark:bg-[#05050A] border border-slate-200 dark:border-white/10 rounded-2xl text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all resize-none overflow-y-scroll overscroll-contain shadow-inner [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-slate-400 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600"
+                />
               </div>
             )}
 
-            <div className="flex items-center gap-4 mb-6">
-              <div className="flex-1 h-px bg-slate-200 dark:bg-white/10"></div>
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                OR PASTE TEXT
-              </span>
-              <div className="flex-1 h-px bg-slate-200 dark:bg-white/10"></div>
-            </div>
-
-            {/* Scrollable Textarea with pointer-events-auto */}
-            <div className="relative mb-6 pointer-events-auto">
-              <textarea
-                value={jdText}
-                onChange={(e) => setJdText(e.target.value)}
-                placeholder="Paste Job Description text here..."
-                rows={8}
-                data-lenis-prevent="true"
-                className="w-full h-52 p-4 bg-slate-50 dark:bg-[#05050A] border border-slate-200 dark:border-white/10 rounded-2xl text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all resize-none overflow-y-scroll overscroll-contain pointer-events-auto shadow-inner [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-slate-400 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600"
-              ></textarea>
-            </div>
+            {error && (
+              <div className="mt-4 p-3 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-xl flex items-start gap-2 text-red-600 dark:text-red-400 text-sm font-medium">
+                <AlertCircle className="w-5 h-5 shrink-0" />
+                {error}
+              </div>
+            )}
 
             <button
-              type="submit"
-              disabled={isAnalyzing || !jdText.trim()}
-              className="w-full flex items-center justify-center gap-2 py-3.5 px-6 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:hover:bg-indigo-600 text-white text-sm font-semibold rounded-2xl transition-all cursor-pointer shadow-lg shadow-indigo-600/25"
+              onClick={handleAnalyze}
+              disabled={
+                isAnalyzing ||
+                (activeTab === "upload" && !file) ||
+                (activeTab === "paste" && !jdText.trim())
+              }
+              className="mt-6 w-full flex items-center justify-center gap-2 py-3.5 px-6 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold rounded-xl transition-all cursor-none shadow-lg shadow-indigo-600/25 disabled:opacity-75 disabled:hover:scale-100 active:scale-[0.98]"
             >
               {isAnalyzing ? (
                 <>
-                  <Sparkles className="w-4 h-4 animate-spin" /> Analyzing
+                  <Wand2 className="w-4 h-4 animate-spin" /> Analyzing
                   Requirements...
                 </>
               ) : (
                 <>
-                  <FileText className="w-4 h-4" /> Analyze JD
+                  <FileText className="w-4 h-4" /> Extract Constraints
                 </>
               )}
             </button>
-            {error && (
-              <p
-                className="mt-3 text-sm font-medium text-red-600 dark:text-red-400"
-                role="alert"
-              >
-                {error}
-              </p>
-            )}
-          </form>
+          </div>
         </div>
 
-        {/* Right Column: AI Extracted Results */}
+        {/* Output Panel: AI Extracted Results */}
         <div className="bg-white dark:bg-[#0A0A12]/80 backdrop-blur-2xl border border-slate-200 dark:border-white/10 rounded-[2rem] p-6 sm:p-8 shadow-xl shadow-slate-900/5 relative overflow-hidden flex flex-col min-h-0">
           {!result && !isAnalyzing && (
             <div className="min-h-[400px] flex flex-col items-center justify-center text-center opacity-50">
@@ -259,7 +298,7 @@ ${analysis.preferred_skills.map((s) => `- ${s}`).join("\n")}
             <div className="min-h-[400px] flex flex-col items-center justify-center text-center space-y-4">
               <div className="relative w-16 h-16 flex items-center justify-center">
                 <div className="absolute inset-0 rounded-full border-t-2 border-indigo-500 animate-spin"></div>
-                <Wand2 className="w-6 h-6 text-indigo-400 animate-pulse" />
+                <BrainCircuit className="w-6 h-6 text-indigo-400 animate-pulse" />
               </div>
               <p className="text-sm font-mono text-indigo-500 dark:text-indigo-400">
                 agent_extractor running...
@@ -371,9 +410,10 @@ ${analysis.preferred_skills.map((s) => `- ${s}`).join("\n")}
                 </button>
                 <button
                   onClick={handlePublish}
-                  className="flex-1 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold rounded-xl transition-all cursor-pointer shadow-lg shadow-emerald-600/20"
+                  disabled={isPublishing}
+                  className="flex-1 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-70 text-white text-sm font-semibold rounded-xl transition-all cursor-pointer shadow-lg shadow-emerald-600/20"
                 >
-                  Approve & Publish Live
+                  {isPublishing ? "Publishing..." : "Approve & Publish Live"}
                 </button>
               </div>
             </div>
