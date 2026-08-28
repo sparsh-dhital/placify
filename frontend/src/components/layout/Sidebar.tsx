@@ -18,11 +18,11 @@ import { Logo } from "../ui/Logo";
 
 const navItems = [
   { name: "Overview", path: "/admin", icon: LayoutDashboard },
+  { name: "JD Analyzer", path: "/admin/jds", icon: FileText },
+  { name: "Eligibility Agent", path: "/admin/candidates", icon: Users },
+  { name: "Matchmaker Agent", path: "/admin/matching", icon: ShieldCheck },
   { name: "Placements", path: "/admin/placements", icon: Briefcase },
-  { name: "Candidates", path: "/admin/candidates", icon: Users },
-  { name: "Job Descriptions", path: "/admin/jds", icon: FileText },
-  { name: "Matching", path: "/admin/matching", icon: ShieldCheck },
-  { name: "Interviews", path: "/admin/interviews", icon: Calendar },
+  { name: "Scheduler Agent", path: "/admin/interviews", icon: Calendar },
   { name: "Panelists", path: "/admin/panelists", icon: UsersRound },
   {
     name: "Communications",
@@ -58,7 +58,6 @@ export default function Sidebar({
       className="w-64 bg-white dark:bg-[#0A0A12] border-r border-slate-200 dark:border-white/10 h-screen flex flex-col flex-shrink-0 transition-colors relative z-50"
       aria-label="Sidebar Navigation"
     >
-      {/* Native button element guarantees click execution and overrides any layout trapping */}
       <div className="h-16 border-b border-slate-200 dark:border-white/10 flex items-center px-6 relative z-50">
         <Link
           to="/"

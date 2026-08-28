@@ -1,5 +1,5 @@
-// src/pages/admin/Matching.tsx
-import { useState } from "react";
+// frontend/src/pages/admin/Matching.tsx
+import { useState, useEffect } from "react";
 import {
   BrainCircuit,
   Play,
@@ -10,27 +10,39 @@ import {
   Sparkles,
   ShieldCheck,
 } from "lucide-react";
-import { generateMatches } from "../../services/api";
-import type { MatchResponse, MatchResult } from "../../services/api";
+import { generateMatches, getActiveJobs } from "../../services/api";
+import type { MatchResponse, MatchResult, JobRecord } from "../../services/api";
 
 export default function Matching() {
   const [isProcessing, setIsProcessing] = useState(false);
+  const [activeJobs, setActiveJobs] = useState<JobRecord[]>([]);
+  const [selectedJobId, setSelectedJobId] = useState<string>("");
   const [data, setData] = useState<MatchResponse | null>(null);
   const [selectedMatch, setSelectedMatch] = useState<MatchResult | null>(null);
 
-  // Hardcoded job ID for demonstration
-  const activeJobId = "20000000-0000-0000-0000-000000000001";
+  useEffect(() => {
+    getActiveJobs()
+      .then((res) => {
+        if (res.success && res.jobs.length > 0) {
+          setActiveJobs(res.jobs);
+          const active =
+            res.jobs.find((j) => j.status === "active") || res.jobs[0];
+          setSelectedJobId(active.job_id);
+        }
+      })
+      .catch((err) => console.error("Failed to fetch jobs:", err));
+  }, []);
 
   const handleGenerate = async () => {
+    if (!selectedJobId) return;
     setIsProcessing(true);
     setData(null);
     setSelectedMatch(null);
     try {
-      // Toggle 'true' to 'false' when testing with the live FastAPI backend
-      const result = await generateMatches(activeJobId);
+      const result = await generateMatches(selectedJobId);
       setData(result);
       if (result.matches.length > 0) {
-        setSelectedMatch(result.matches[0]); // Auto-select first candidate
+        setSelectedMatch(result.matches[0]);
       }
     } catch (error) {
       console.error(error);
@@ -60,26 +72,40 @@ export default function Matching() {
             Matchmaker Agent
           </h1>
           <p className="text-slate-600 dark:text-slate-400 mt-2 text-sm max-w-xl">
-            Compare eligible students against job skills. Mandatory skills carry
-            higher weight to generate explainable readiness scores.
+            Compare eligible students against job skill vectors in real-time to
+            compute explainable readiness scores.
           </p>
         </div>
-
-        <button
-          onClick={handleGenerate}
-          disabled={isProcessing}
-          className="flex items-center justify-center gap-2 py-3 px-6 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-70 disabled:hover:bg-indigo-600 text-white text-sm font-semibold rounded-2xl hover:scale-[1.02] active:scale-95 transition-all cursor-none shadow-lg shadow-indigo-600/25 shrink-0"
-        >
-          {isProcessing ? (
-            <BrainCircuit
-              className="w-4 h-4 animate-bounce"
-              aria-hidden="true"
-            />
-          ) : (
-            <Play className="w-4 h-4" aria-hidden="true" />
+        <div className="flex items-center gap-3">
+          {activeJobs.length > 0 && (
+            <select
+              value={selectedJobId}
+              onChange={(e) => setSelectedJobId(e.target.value)}
+              className="bg-white dark:bg-[#0A0A12] border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+            >
+              {activeJobs.map((j) => (
+                <option key={j.job_id} value={j.job_id}>
+                  {j.company} - {j.role}
+                </option>
+              ))}
+            </select>
           )}
-          {isProcessing ? "Agent Analyzing..." : "Generate AI Matches"}
-        </button>
+          <button
+            onClick={handleGenerate}
+            disabled={isProcessing || !selectedJobId}
+            className="flex items-center justify-center gap-2 py-3 px-6 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-70 disabled:hover:bg-indigo-600 text-white text-sm font-semibold rounded-2xl hover:scale-[1.02] active:scale-95 transition-all cursor-none shadow-lg shadow-indigo-600/25 shrink-0"
+          >
+            {isProcessing ? (
+              <BrainCircuit
+                className="w-4 h-4 animate-bounce"
+                aria-hidden="true"
+              />
+            ) : (
+              <Play className="w-4 h-4" aria-hidden="true" />
+            )}
+            {isProcessing ? "Agent Analyzing..." : "Generate AI Matches"}
+          </button>
+        </div>
       </div>
 
       {/* Processing State */}
@@ -96,7 +122,7 @@ export default function Matching() {
             Calculating Skill Vectors
           </h3>
           <p className="text-sm text-slate-500 font-mono">
-            Mapping student proficiencies against TechNova requirements...
+            Mapping student proficiencies against active job requirements...
           </p>
         </div>
       )}
@@ -119,8 +145,7 @@ export default function Matching() {
                 AI MATCH RESULTS
               </div>
             </div>
-
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 max-h-[500px]">
               {data.matches.map((match) => (
                 <div
                   key={match.student_id}
@@ -154,15 +179,20 @@ export default function Matching() {
                       )}
                     </div>
                   </div>
-
                   <div className="flex items-center gap-4">
                     <div
-                      className={`px-3 py-1.5 rounded-xl border text-sm font-bold font-mono ${getScoreColor(match.match_score)}`}
+                      className={`px-3 py-1.5 rounded-xl border text-sm font-bold font-mono ${getScoreColor(
+                        match.match_score,
+                      )}`}
                     >
                       {match.match_score}%
                     </div>
                     <ChevronRight
-                      className={`w-5 h-5 transition-colors ${selectedMatch?.student_id === match.student_id ? "text-indigo-500" : "text-slate-300 dark:text-slate-600 group-hover:text-slate-400"}`}
+                      className={`w-5 h-5 transition-colors ${
+                        selectedMatch?.student_id === match.student_id
+                          ? "text-indigo-500"
+                          : "text-slate-300 dark:text-slate-600 group-hover:text-slate-400"
+                      }`}
                     />
                   </div>
                 </div>
@@ -176,10 +206,8 @@ export default function Matching() {
               <Target className="w-4 h-4 text-indigo-500" aria-hidden="true" />
               Match Explanation
             </h3>
-
             {selectedMatch ? (
               <div className="space-y-6 animate-in fade-in">
-                {/* Score & Confidence Header */}
                 <div className="flex justify-between items-start pb-4 border-b border-slate-200 dark:border-white/10">
                   <div>
                     <p className="text-xl font-bold text-slate-900 dark:text-white">
@@ -193,13 +221,14 @@ export default function Matching() {
                     </p>
                   </div>
                   <div
-                    className={`px-4 py-2 rounded-xl border text-xl font-bold font-mono ${getScoreColor(selectedMatch.match_score)}`}
+                    className={`px-4 py-2 rounded-xl border text-xl font-bold font-mono ${getScoreColor(
+                      selectedMatch.match_score,
+                    )}`}
                   >
                     {selectedMatch.match_score}%
                   </div>
                 </div>
 
-                {/* AI Reasoning */}
                 <div className="bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 p-4 rounded-xl">
                   <p className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                     <ShieldCheck className="w-3.5 h-3.5" /> Why this match?
@@ -209,7 +238,6 @@ export default function Matching() {
                   </p>
                 </div>
 
-                {/* Skills Breakdown */}
                 <div className="space-y-4">
                   <div>
                     <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-2">
@@ -227,7 +255,6 @@ export default function Matching() {
                       ))}
                     </div>
                   </div>
-
                   {selectedMatch.missing_skills.length > 0 && (
                     <div>
                       <p className="text-xs font-bold text-red-600 dark:text-red-400 uppercase tracking-wider mb-2">

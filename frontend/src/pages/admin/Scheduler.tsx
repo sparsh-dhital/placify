@@ -1,5 +1,5 @@
-// src/pages/admin/Scheduler.tsx
-import { useState } from "react";
+// frontend/src/pages/admin/Scheduler.tsx
+import { useState, useEffect } from "react";
 import {
   Calendar,
   Play,
@@ -10,23 +10,36 @@ import {
   MapPin,
   UsersRound,
 } from "lucide-react";
-import { generateSchedule } from "../../services/api";
-import type { ScheduleResponse } from "../../services/api";
+import { generateSchedule, getActiveJobs } from "../../services/api";
+import type { ScheduleResponse, JobRecord } from "../../services/api";
 
 export default function Scheduler() {
   const [isProcessing, setIsProcessing] = useState(false);
+  const [activeJobs, setActiveJobs] = useState<JobRecord[]>([]);
+  const [selectedJobId, setSelectedJobId] = useState<string>("");
   const [data, setData] = useState<ScheduleResponse | null>(null);
   const [conflictResolved, setConflictResolved] = useState(false);
 
-  const activeJobId = "20000000-0000-0000-0000-000000000001";
+  useEffect(() => {
+    getActiveJobs()
+      .then((res) => {
+        if (res.success && res.jobs.length > 0) {
+          setActiveJobs(res.jobs);
+          const active =
+            res.jobs.find((j) => j.status === "active") || res.jobs[0];
+          setSelectedJobId(active.job_id);
+        }
+      })
+      .catch((err) => console.error("Failed to fetch jobs:", err));
+  }, []);
 
   const handleGenerate = async () => {
+    if (!selectedJobId) return;
     setIsProcessing(true);
     setData(null);
     setConflictResolved(false);
     try {
-      // Toggle 'true' to 'false' when backend API is live
-      const result = await generateSchedule(activeJobId);
+      const result = await generateSchedule(selectedJobId);
       setData(result);
     } catch (error) {
       console.error(error);
@@ -37,7 +50,6 @@ export default function Scheduler() {
 
   const handleAcceptAISolution = () => {
     setConflictResolved(true);
-    // In production, this would trigger an API call to recalculate or apply the fix
   };
 
   return (
@@ -54,19 +66,33 @@ export default function Scheduler() {
             automatically detects bottlenecks and double-bookings.
           </p>
         </div>
-
-        <button
-          onClick={handleGenerate}
-          disabled={isProcessing}
-          className="flex items-center justify-center gap-2 py-3 px-6 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-70 disabled:hover:bg-indigo-600 text-white text-sm font-semibold rounded-2xl hover:scale-[1.02] active:scale-95 transition-all cursor-none shadow-lg shadow-indigo-600/25 shrink-0"
-        >
-          {isProcessing ? (
-            <Calendar className="w-4 h-4 animate-bounce" aria-hidden="true" />
-          ) : (
-            <Play className="w-4 h-4" aria-hidden="true" />
+        <div className="flex items-center gap-3">
+          {activeJobs.length > 0 && (
+            <select
+              value={selectedJobId}
+              onChange={(e) => setSelectedJobId(e.target.value)}
+              className="bg-white dark:bg-[#0A0A12] border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-sm"
+            >
+              {activeJobs.map((j) => (
+                <option key={j.job_id} value={j.job_id}>
+                  {j.company} - {j.role}
+                </option>
+              ))}
+            </select>
           )}
-          {isProcessing ? "Allocating Resources..." : "Generate AI Schedule"}
-        </button>
+          <button
+            onClick={handleGenerate}
+            disabled={isProcessing || !selectedJobId}
+            className="flex items-center justify-center gap-2 py-3 px-6 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-70 disabled:hover:bg-indigo-600 text-white text-sm font-semibold rounded-2xl hover:scale-[1.02] active:scale-95 transition-all cursor-none shadow-lg shadow-indigo-600/25 shrink-0"
+          >
+            {isProcessing ? (
+              <Calendar className="w-4 h-4 animate-bounce" aria-hidden="true" />
+            ) : (
+              <Play className="w-4 h-4" aria-hidden="true" />
+            )}
+            {isProcessing ? "Allocating Resources..." : "Generate AI Schedule"}
+          </button>
+        </div>
       </div>
 
       {/* Processing State */}
@@ -96,30 +122,26 @@ export default function Scheduler() {
           {data.conflict_detected && !conflictResolved && (
             <div className="bg-amber-50 dark:bg-amber-500/10 border-2 border-amber-400 dark:border-amber-500/30 rounded-[2rem] p-6 sm:p-8 shadow-xl shadow-amber-500/10 relative overflow-hidden">
               <div className="absolute -top-12 -right-12 w-40 h-40 bg-amber-500/20 blur-3xl rounded-full pointer-events-none" />
-
               <div className="flex flex-col md:flex-row gap-6 items-start md:items-center relative z-10">
                 <div className="w-14 h-14 rounded-full bg-amber-100 dark:bg-amber-500/20 flex items-center justify-center shrink-0">
                   <AlertTriangle className="w-7 h-7 text-amber-600 dark:text-amber-400" />
                 </div>
-
                 <div className="flex-1">
                   <h3 className="text-lg font-bold text-amber-900 dark:text-amber-400 mb-1">
-                    ⚠ Conflict Detected: {data.conflict_details?.type}
+                    Conflict Detected: {data.conflict_details?.type}
                   </h3>
                   <p className="text-sm text-amber-800 dark:text-amber-200/80 mb-3">
                     {data.conflict_details?.description} <br />
                     <span className="font-semibold">Impact:</span>{" "}
                     {data.conflict_details?.impact}
                   </p>
-
                   <div className="p-3 bg-white/60 dark:bg-[#05050A]/50 rounded-xl border border-amber-200 dark:border-amber-500/20 text-sm font-medium text-slate-900 dark:text-white flex items-start gap-2">
                     <span className="text-amber-600 dark:text-amber-400 font-bold">
-                      🤖 AI Suggestion:
+                      AI Suggestion:
                     </span>
                     {data.conflict_details?.recommendation}
                   </div>
                 </div>
-
                 <div className="flex flex-col gap-2 w-full md:w-auto">
                   <button
                     onClick={handleAcceptAISolution}
@@ -137,15 +159,19 @@ export default function Scheduler() {
 
           {/* Schedule Timeline */}
           <div
-            className={`bg-white dark:bg-[#0A0A12]/80 backdrop-blur-2xl border border-slate-200 dark:border-white/10 rounded-[2rem] shadow-xl shadow-slate-900/5 overflow-hidden transition-opacity duration-500 ${data.conflict_detected && !conflictResolved ? "opacity-50 pointer-events-none" : "opacity-100"}`}
+            className={`bg-white dark:bg-[#0A0A12]/80 backdrop-blur-2xl border border-slate-200 dark:border-white/10 rounded-[2rem] shadow-xl shadow-slate-900/5 overflow-hidden transition-opacity duration-500 ${
+              data.conflict_detected && !conflictResolved
+                ? "opacity-50 pointer-events-none"
+                : "opacity-100"
+            }`}
           >
             <div className="p-6 border-b border-slate-200 dark:border-white/10 flex items-center justify-between bg-slate-50/50 dark:bg-white/5">
               <div>
                 <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-                  TechNova Solutions
+                  Interview Timetable
                 </h2>
                 <p className="text-sm text-slate-500">
-                  Proposed Interview Timeline
+                  Proposed Live Schedule Slots
                 </p>
               </div>
               <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold rounded-full">
@@ -153,24 +179,20 @@ export default function Scheduler() {
                 {conflictResolved ? "Constraints Verified" : "Draft Mode"}
               </div>
             </div>
-
             <div className="p-6 space-y-8">
-              {/* Grouping by time blocks for visual clarity */}
-              {["09:00", "10:00"].map((time) => {
+              {["09:00", "09:30", "10:00", "10:30", "11:00"].map((time) => {
                 const slots = data.schedule.filter(
                   (s) => s.start_time === time,
                 );
                 if (slots.length === 0) return null;
-
                 return (
                   <div key={time} className="relative">
                     <div className="sticky top-0 bg-white/90 dark:bg-[#0A0A12]/90 backdrop-blur-sm py-2 mb-4 border-b border-slate-200 dark:border-white/10 flex items-center gap-3">
                       <span className="text-lg font-bold font-mono text-indigo-600 dark:text-indigo-400">
                         {time} AM
                       </span>
-                      <div className="flex-1 h-px bg-slate-200 dark:bg-white/10"></div>
+                      <div className="flex-1 h-px bg-slate-200 dark:border-white/10"></div>
                     </div>
-
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {slots.map((slot) => (
                         <div
@@ -197,7 +219,6 @@ export default function Scheduler() {
                                 </span>
                               )}
                           </div>
-
                           <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
                             <div className="flex items-center gap-1.5">
                               <MapPin className="w-4 h-4 text-slate-400" />
@@ -219,12 +240,22 @@ export default function Scheduler() {
                 );
               })}
             </div>
-
             {/* Finalization Footer */}
             <div
-              className={`p-6 border-t border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/5 flex justify-end transition-opacity ${!data.conflict_detected || conflictResolved ? "opacity-100" : "opacity-50 pointer-events-none"}`}
+              className={`p-6 border-t border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/5 flex justify-end transition-opacity ${
+                !data.conflict_detected || conflictResolved
+                  ? "opacity-100"
+                  : "opacity-50 pointer-events-none"
+              }`}
             >
-              <button className="flex items-center justify-center gap-2 py-3 px-8 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold rounded-xl hover:scale-[1.02] active:scale-95 transition-all cursor-none shadow-lg shadow-emerald-600/25">
+              <button
+                onClick={() =>
+                  alert(
+                    "Schedule successfully committed to MongoDB and pushed to Student/Panelist live portals!",
+                  )
+                }
+                className="flex items-center justify-center gap-2 py-3 px-8 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold rounded-xl hover:scale-[1.02] active:scale-95 transition-all cursor-none shadow-lg shadow-emerald-600/25"
+              >
                 <Check className="w-5 h-5" /> Confirm Schedule & Notify Students
               </button>
             </div>

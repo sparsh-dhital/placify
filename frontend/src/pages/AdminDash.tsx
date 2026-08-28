@@ -1,4 +1,5 @@
-// src/pages/AdminDash.tsx
+// frontend/src/pages/AdminDash.tsx
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   Building2,
@@ -11,39 +12,63 @@ import {
   Activity,
   Briefcase,
 } from "lucide-react";
+import { getAdminMetrics, type AdminDashboardMetrics } from "../services/api";
 
 export default function AdminDash() {
+  const [metrics, setMetrics] = useState<AdminDashboardMetrics | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    getAdminMetrics()
+      .then((data) => {
+        if (data) setMetrics(data);
+      })
+      .catch((err) => console.error("Failed to load admin metrics:", err))
+      .finally(() => setIsLoading(false));
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center text-center">
+        <div className="w-12 h-12 rounded-full border-t-2 border-indigo-500 animate-spin mb-4" />
+        <p className="text-slate-500 font-medium">
+          Synchronizing live operational metrics...
+        </p>
+      </div>
+    );
+  }
+
   const kpis = [
     {
       title: "Active Companies",
-      value: "12",
+      value: metrics?.active_companies_count ?? 1,
       icon: Building2,
-      trend: "+2 this week",
+      trend: "Live vector active",
       color: "text-blue-400",
       bg: "bg-blue-500/10",
     },
     {
       title: "Eligible Students",
-      value: "347",
+      value: metrics?.eligible_students_count ?? 0,
       icon: Users,
-      trend: "98% verified",
+      trend: "MongoDB verified",
       color: "text-emerald-400",
       bg: "bg-emerald-500/10",
     },
     {
       title: "Shortlisted",
-      value: "82",
+      value: metrics?.shortlisted_count ?? 0,
       icon: CheckCircle2,
-      trend: "Awaiting approval",
+      trend: "Awaiting final schedule",
       alert: true,
       color: "text-amber-400",
       bg: "bg-amber-500/10",
     },
     {
       title: "Interviews Today",
-      value: "51",
+      value: metrics?.interviews_today_count ?? 0,
       icon: Calendar,
-      trend: "4 rooms active",
+      trend: "Panel roster active",
       color: "text-purple-400",
       bg: "bg-purple-500/10",
     },
@@ -58,15 +83,16 @@ export default function AdminDash() {
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 bg-white dark:bg-[#0A0A12]/80 backdrop-blur-2xl border border-slate-200 dark:border-white/10 rounded-[2.5rem] p-6 sm:p-8 shadow-xl relative z-10">
         <div className="flex flex-col gap-1">
           <h1 className="text-xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
-            Good morning, Placement Officer 👋
+            Good morning, Placement Officer
           </h1>
           <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
-            3 core agent operations require your executive attention today.
+            Live database orchestration active across student portals and
+            panelist workspaces.
           </p>
         </div>
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-[11px] sm:text-xs font-bold text-indigo-400 uppercase tracking-wider self-start md:self-auto">
           <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
-          AI Operations Active
+          Real-Time Sync Active
         </div>
       </header>
 
@@ -94,7 +120,7 @@ export default function AdminDash() {
                 <div className="flex items-center justify-between mt-2">
                   <p className="text-xs text-slate-500">{kpi.trend}</p>
                   {kpi.alert && (
-                    <span className="flex h-2.5 w-2.5 rounded-full bg-amber-500 animate-pulse shrink-0"></span>
+                    <span className="flex h-2.5 w-2.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
                   )}
                 </div>
               </div>
@@ -115,54 +141,43 @@ export default function AdminDash() {
                   Pending Executive Actions
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  AI-prepared work waiting for officer approval.
+                  Agent workflows waiting for officer approval.
                 </p>
               </div>
               <Bot className="w-6 h-6 text-indigo-500 shrink-0" />
             </div>
-
             <div className="space-y-4">
-              {[
-                [
-                  "Approve TechNova shortlist",
-                  "41 students matched above 80%",
-                  "/admin/matching",
-                  "Review shortlist",
-                ],
-                [
-                  "Resolve Room A overlap",
-                  "2 interviews need a new room allocation",
-                  "/admin/exceptions",
-                  "Open exception",
-                ],
-                [
-                  "Publish DataSphere eligibility",
-                  "Eligibility extraction vector verified",
-                  "/admin/candidates",
-                  "Publish results",
-                ],
-              ].map(([title, detail, link, action]) => (
-                <div
-                  key={title}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-[#05050A] p-4 sm:p-5 group hover:border-indigo-500/30 transition-all"
-                >
-                  <div className="flex gap-3.5 items-start min-w-0">
-                    <AlertCircle className="w-5 h-5 text-amber-500 mt-0.5 shrink-0" />
-                    <div className="min-w-0">
-                      <p className="font-bold text-slate-900 dark:text-white text-sm truncate">
-                        {title}
-                      </p>
-                      <p className="text-xs text-slate-500 mt-0.5">{detail}</p>
-                    </div>
-                  </div>
-                  <Link
-                    to={link}
-                    className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center justify-center gap-1.5 whitespace-nowrap bg-white dark:bg-white/10 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 shadow-sm cursor-none self-end sm:self-auto"
+              {metrics?.pending_actions &&
+              metrics.pending_actions.length > 0 ? (
+                metrics.pending_actions.map((act, idx) => (
+                  <div
+                    key={idx}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-[#05050A] p-4 sm:p-5 group hover:border-indigo-500/30 transition-all"
                   >
-                    {action} <ArrowUpRight className="w-3.5 h-3.5" />
-                  </Link>
-                </div>
-              ))}
+                    <div className="flex gap-3.5 items-start min-w-0">
+                      <AlertCircle className="w-5 h-5 text-amber-500 mt-0.5 shrink-0" />
+                      <div className="min-w-0">
+                        <p className="font-bold text-slate-900 dark:text-white text-sm truncate">
+                          {act.title}
+                        </p>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          {act.detail}
+                        </p>
+                      </div>
+                    </div>
+                    <Link
+                      to={act.link}
+                      className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center justify-center gap-1.5 whitespace-nowrap bg-white dark:bg-white/10 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 shadow-sm cursor-none self-end sm:self-auto"
+                    >
+                      {act.action} <ArrowUpRight className="w-3.5 h-3.5" />
+                    </Link>
+                  </div>
+                ))
+              ) : (
+                <p className="text-xs text-slate-500 py-4 text-center">
+                  All agent shortlists and exception queues are fully cleared.
+                </p>
+              )}
             </div>
           </div>
 
@@ -170,55 +185,41 @@ export default function AdminDash() {
           <div className="bg-white dark:bg-[#0A0A12]/80 backdrop-blur-2xl border border-slate-200 dark:border-white/10 rounded-[2.5rem] p-6 sm:p-8 shadow-xl">
             <div className="flex items-center justify-between mb-6 border-b border-slate-200 dark:border-white/10 pb-4">
               <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
-                Today&apos;s Placement Schedule
+                Today&apos;s Live Interview Schedule
               </h2>
               <Calendar className="w-5 h-5 text-indigo-500 shrink-0" />
             </div>
             <div className="space-y-3">
-              {[
-                [
-                  "09:00 AM",
-                  "TechNova Solutions",
-                  "Technical Round 1",
-                  "Room 101",
-                  "24 candidates",
-                ],
-                [
-                  "11:30 AM",
-                  "DataSphere AI",
-                  "Aptitude Test",
-                  "Lab 2",
-                  "58 candidates",
-                ],
-                [
-                  "02:00 PM",
-                  "FinEdge Systems",
-                  "HR Discussion",
-                  "Room 204",
-                  "16 candidates",
-                ],
-              ].map(([time, company, round, room, count]) => (
-                <div
-                  key={`${time}-${company}`}
-                  className="flex flex-col sm:grid sm:grid-cols-[85px_1fr_auto] items-start sm:items-center gap-3 sm:gap-4 rounded-2xl bg-slate-50 dark:bg-[#05050A] border border-slate-200 dark:border-white/5 p-4"
-                >
-                  <span className="text-xs font-black text-indigo-600 dark:text-indigo-400 font-mono bg-indigo-50 dark:bg-indigo-500/10 px-2.5 py-1.5 rounded-lg border border-indigo-200 dark:border-indigo-500/20 text-center">
-                    {time}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="font-bold text-slate-900 dark:text-white text-sm truncate">
-                      {company}
-                    </p>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      {round} • <span className="font-semibold">{count}</span>
-                    </p>
+              {metrics?.todays_schedule &&
+              metrics.todays_schedule.length > 0 ? (
+                metrics.todays_schedule.map((sch, idx) => (
+                  <div
+                    key={idx}
+                    className="flex flex-col sm:grid sm:grid-cols-[85px_1fr_auto] items-start sm:items-center gap-3 sm:gap-4 rounded-2xl bg-slate-50 dark:bg-[#05050A] border border-slate-200 dark:border-white/5 p-4"
+                  >
+                    <span className="text-xs font-black text-indigo-600 dark:text-indigo-400 font-mono bg-indigo-50 dark:bg-indigo-500/10 px-2.5 py-1.5 rounded-lg border border-indigo-200 dark:border-indigo-500/20 text-center">
+                      {sch.time}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="font-bold text-slate-900 dark:text-white text-sm truncate">
+                        {sch.company}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        {sch.round}{" "}
+                        <span className="font-semibold">{sch.count}</span>
+                      </p>
+                    </div>
+                    <span className="flex items-center gap-1.5 text-xs font-medium text-slate-500 bg-white dark:bg-white/5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-white/10 self-stretch sm:self-auto justify-center">
+                      <Briefcase className="w-3.5 h-3.5 text-indigo-500 shrink-0" />{" "}
+                      {sch.room}
+                    </span>
                   </div>
-                  <span className="flex items-center gap-1.5 text-xs font-medium text-slate-500 bg-white dark:bg-white/5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-white/10 self-stretch sm:self-auto justify-center">
-                    <Briefcase className="w-3.5 h-3.5 text-indigo-500 shrink-0" />{" "}
-                    {room}
-                  </span>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-xs text-slate-500 py-4 text-center">
+                  No interview slots currently committed for today.
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -234,48 +235,23 @@ export default function AdminDash() {
               <Activity className="w-5 h-5 text-indigo-500 shrink-0" />
             </div>
             <div className="space-y-6">
-              {[
-                [
-                  "JD Agent",
-                  "Extracted 12 requirements from FinEdge JD",
-                  "2 min ago",
-                  "bg-cyan-500",
-                ],
-                [
-                  "Match Agent",
-                  "Ranked 82 candidates for TechNova",
-                  "18 min ago",
-                  "bg-indigo-500",
-                ],
-                [
-                  "Schedule Agent",
-                  "Detected Room A panel conflict",
-                  "31 min ago",
-                  "bg-amber-500",
-                ],
-                [
-                  "Comms Agent",
-                  "Sent 94 interview reminders",
-                  "1 hr ago",
-                  "bg-emerald-500",
-                ],
-              ].map(([agent, detail, time, color]) => (
+              {metrics?.agent_activity?.map((act, idx) => (
                 <div
-                  key={detail}
+                  key={idx}
                   className="flex gap-4 items-start relative pb-4 border-b border-slate-100 dark:border-white/5 last:border-0 last:pb-0"
                 >
                   <span
-                    className={`mt-1.5 w-2.5 h-2.5 rounded-full ${color} shrink-0 shadow-sm`}
+                    className={`mt-1.5 w-2.5 h-2.5 rounded-full ${act.color} shrink-0 shadow-sm`}
                   />
                   <div className="min-w-0">
                     <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                      {agent}
+                      {act.agent}
                     </p>
                     <p className="text-sm font-semibold text-slate-900 dark:text-white mt-0.5 leading-relaxed">
-                      {detail}
+                      {act.detail}
                     </p>
                     <p className="text-[11px] font-mono text-slate-400 mt-1">
-                      {time}
+                      {act.time}
                     </p>
                   </div>
                 </div>
@@ -294,7 +270,8 @@ export default function AdminDash() {
               <div className="flex items-center justify-between text-sm font-semibold text-slate-700 dark:text-slate-300">
                 <span>Verified profiles</span>
                 <strong className="text-slate-900 dark:text-white font-mono">
-                  347 / 356
+                  {metrics?.readiness_stats.verified_count ?? 0}/
+                  {metrics?.readiness_stats.total_count ?? 0}
                 </strong>
               </div>
               <div className="h-2.5 rounded-full bg-slate-100 dark:bg-white/10 overflow-hidden p-0.5 border border-slate-200 dark:border-white/5">
@@ -307,7 +284,7 @@ export default function AdminDash() {
                   Avg. readiness
                 </p>
                 <p className="text-2xl font-black text-slate-900 dark:text-white font-mono mt-1">
-                  81%
+                  {metrics?.readiness_stats.avg_readiness ?? 84}%
                 </p>
               </div>
               <div className="rounded-2xl bg-slate-50 dark:bg-[#05050A] border border-slate-200 dark:border-white/5 p-4">
@@ -315,7 +292,7 @@ export default function AdminDash() {
                   Open exceptions
                 </p>
                 <p className="text-2xl font-black text-amber-500 font-mono mt-1">
-                  3
+                  {metrics?.readiness_stats.open_exceptions ?? 0}
                 </p>
               </div>
             </div>

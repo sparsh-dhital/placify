@@ -1,4 +1,5 @@
-import { useState } from "react";
+// frontend/src/pages/admin/Eligibility.tsx
+import { useState, useEffect } from "react";
 import {
   CheckCircle2,
   XCircle,
@@ -8,28 +9,41 @@ import {
   AlertCircle,
   ChevronRight,
 } from "lucide-react";
-import { runEligibility } from "../../services/api";
+import { runEligibility, getActiveJobs } from "../../services/api";
 import type {
   EligibilityResponse,
   EligibilityResult,
+  JobRecord,
 } from "../../services/api";
 
 export default function Eligibility() {
   const [isProcessing, setIsProcessing] = useState(false);
+  const [activeJobs, setActiveJobs] = useState<JobRecord[]>([]);
+  const [selectedJobId, setSelectedJobId] = useState<string>("");
   const [data, setData] = useState<EligibilityResponse | null>(null);
   const [selectedStudent, setSelectedStudent] =
     useState<EligibilityResult | null>(null);
 
-  // Hardcoded job ID for demonstration; in production, this would come from route params
-  const activeJobId = "20000000-0000-0000-0000-000000000001";
+  useEffect(() => {
+    getActiveJobs()
+      .then((res) => {
+        if (res.success && res.jobs.length > 0) {
+          setActiveJobs(res.jobs);
+          const active =
+            res.jobs.find((j) => j.status === "active") || res.jobs[0];
+          setSelectedJobId(active.job_id);
+        }
+      })
+      .catch((err) => console.error("Failed to fetch jobs:", err));
+  }, []);
 
   const handleRunAgent = async () => {
+    if (!selectedJobId) return;
     setIsProcessing(true);
     setData(null);
     setSelectedStudent(null);
     try {
-      // Toggle 'true' to 'false' when testing with the live FastAPI backend
-      const result = await runEligibility(activeJobId);
+      const result = await runEligibility(selectedJobId);
       setData(result);
     } catch (error) {
       console.error(error);
@@ -48,26 +62,37 @@ export default function Eligibility() {
             Eligibility Agent
           </h1>
           <p className="text-slate-600 dark:text-slate-400 mt-2 text-sm max-w-xl">
-            Evaluate registered students against strict JD constraints (CGPA,
-            Backlogs) to generate the baseline eligible pool.
+            Evaluate registered student registers against active job constraints
+            (CGPA, Backlogs) in real-time.
           </p>
         </div>
-
-        <button
-          onClick={handleRunAgent}
-          disabled={isProcessing}
-          className="flex items-center justify-center gap-2 py-3 px-6 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-70 disabled:hover:bg-indigo-600 text-white text-sm font-semibold rounded-2xl hover:scale-[1.02] active:scale-95 transition-all cursor-none shadow-lg shadow-indigo-600/25 shrink-0"
-          aria-label={
-            isProcessing ? "Running Eligibility Agent" : "Run Eligibility Check"
-          }
-        >
-          {isProcessing ? (
-            <Bot className="w-4 h-4 animate-bounce" aria-hidden="true" />
-          ) : (
-            <Play className="w-4 h-4" aria-hidden="true" />
+        <div className="flex items-center gap-3">
+          {activeJobs.length > 0 && (
+            <select
+              value={selectedJobId}
+              onChange={(e) => setSelectedJobId(e.target.value)}
+              className="bg-white dark:bg-[#0A0A12] border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+            >
+              {activeJobs.map((j) => (
+                <option key={j.job_id} value={j.job_id}>
+                  {j.company} - {j.role}
+                </option>
+              ))}
+            </select>
           )}
-          {isProcessing ? "Agent Running..." : "Run Eligibility Check"}
-        </button>
+          <button
+            onClick={handleRunAgent}
+            disabled={isProcessing || !selectedJobId}
+            className="flex items-center justify-center gap-2 py-3 px-6 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-70 disabled:hover:bg-indigo-600 text-white text-sm font-semibold rounded-2xl hover:scale-[1.02] active:scale-95 transition-all cursor-none shadow-lg shadow-indigo-600/25 shrink-0"
+          >
+            {isProcessing ? (
+              <Bot className="w-4 h-4 animate-bounce" aria-hidden="true" />
+            ) : (
+              <Play className="w-4 h-4" aria-hidden="true" />
+            )}
+            {isProcessing ? "Agent Running..." : "Run Eligibility Check"}
+          </button>
+        </div>
       </div>
 
       {/* Processing State */}
@@ -85,7 +110,8 @@ export default function Eligibility() {
             Analyzing Student Registers
           </h3>
           <p className="text-sm text-slate-500 font-mono">
-            Verifying CGPA and Backlog constraints for TechNova Solutions...
+            Verifying CGPA and Backlog constraints against MongoDB student
+            records...
           </p>
         </div>
       )}
@@ -189,11 +215,7 @@ export default function Eligibility() {
                         </td>
                         <td className="px-6 py-4">
                           <span
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wide uppercase ${
-                              student.eligible
-                                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20"
-                                : "bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400 border border-red-200 dark:border-red-500/20"
-                            }`}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wide uppercase ${student.eligible ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20" : "bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400 border border-red-200 dark:border-red-500/20"}`}
                           >
                             {student.eligible ? (
                               <CheckCircle2 className="w-3.5 h-3.5" />
@@ -219,7 +241,6 @@ export default function Eligibility() {
                 />
                 Explanation Log
               </h3>
-
               {selectedStudent ? (
                 <div className="space-y-6 animate-in fade-in">
                   <div>
@@ -234,7 +255,6 @@ export default function Eligibility() {
                         : "✗ Failed constraints"}
                     </p>
                   </div>
-
                   <div className="space-y-3">
                     <div className="flex justify-between p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 text-sm">
                       <span className="text-slate-500">CGPA Log</span>
@@ -249,7 +269,6 @@ export default function Eligibility() {
                       </span>
                     </div>
                   </div>
-
                   {!selectedStudent.eligible &&
                     selectedStudent.reasons.length > 0 && (
                       <div className="p-4 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20">

@@ -1,3 +1,5 @@
+// frontend/src/services/api.ts
+
 export const API_URL = "http://localhost:8000/api";
 
 // ==========================================
@@ -24,6 +26,20 @@ const fetchWithAuth = async (endpoint: string, options: RequestInit = {}) => {
     throw new Error(errorData.detail || `Server error: ${response.status}`);
   }
   return response.json();
+};
+
+// ==========================================
+// GENERIC API HELPERS
+// ==========================================
+export const apiGet = async (endpoint: string) => {
+  return fetchWithAuth(endpoint);
+};
+
+export const apiPost = async (endpoint: string, data: any) => {
+  return fetchWithAuth(endpoint, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
 };
 
 // ==========================================
@@ -133,6 +149,64 @@ export const clearChatHistory = async (userId: string) =>
 // ==========================================
 // ADMIN & AGENTS
 // ==========================================
+export interface AdminDashboardMetrics {
+  active_companies_count: number;
+  eligible_students_count: number;
+  shortlisted_count: number;
+  interviews_today_count: number;
+  pending_actions: {
+    title: string;
+    detail: string;
+    link: string;
+    action: string;
+  }[];
+  todays_schedule: {
+    time: string;
+    company: string;
+    round: string;
+    room: string;
+    count: string;
+  }[];
+  agent_activity: {
+    agent: string;
+    detail: string;
+    time: string;
+    color: string;
+  }[];
+  readiness_stats: {
+    verified_count: number;
+    total_count: number;
+    avg_readiness: number;
+    open_exceptions: number;
+  };
+}
+
+export const getAdminMetrics = async (): Promise<AdminDashboardMetrics> =>
+  fetchWithAuth("/admin/metrics");
+
+export interface JobRecord {
+  job_id: string;
+  company: string;
+  role: string;
+  min_cgpa: number;
+  max_backlogs: number;
+  status: string;
+  required_skills: string[];
+  preferred_skills?: string[];
+  salary?: string;
+}
+
+export const getActiveJobs = async (): Promise<{
+  success: boolean;
+  jobs: JobRecord[];
+}> => fetchWithAuth("/admin/jobs");
+
+export const publishActiveJob = async (jobData: { text: string }) =>
+  fetchWithAuth("/admin/jobs/publish", {
+    method: "POST",
+    body: JSON.stringify(jobData),
+  });
+
 export interface JDAnalysisResponse {
   success: boolean;
   company: string;
@@ -458,9 +532,8 @@ const extractTextFromPdf = async (file: File): Promise<string> => {
   );
   const hasGarbledEncoding = /[\ufffd]{2,}/.test(textLayer);
 
-  if (textLayer.length >= 40 && hasValidEmail && !hasGarbledEncoding) {
+  if (textLayer.length >= 40 && hasValidEmail && !hasGarbledEncoding)
     return textLayer;
-  }
 
   const ocrPages: string[] = [];
   for (let i = 1; i <= pdf.numPages; i += 1) {
@@ -497,21 +570,15 @@ const resumeParsingAgent = async (file: File): Promise<string> => {
   const extension = file.name.split(".").pop()?.toLowerCase() || "";
   const fileType = file.type.toLowerCase();
 
-  if (extension === "pdf" || fileType === "application/pdf") {
+  if (extension === "pdf" || fileType === "application/pdf")
     return extractTextFromPdf(file);
-  }
   if (
     fileType.startsWith("image/") ||
     ["png", "jpg", "jpeg", "webp"].includes(extension)
-  ) {
+  )
     return extractTextFromImage(file);
-  }
-  if (
-    fileType.startsWith("text/") ||
-    ["txt", "md", "csv"].includes(extension)
-  ) {
+  if (fileType.startsWith("text/") || ["txt", "md", "csv"].includes(extension))
     return extractTextFromTextFile(file);
-  }
   throw new Error(
     `The file extension (.${extension}) cannot be parsed. Please upload a PDF, Image, or plain text file.`,
   );

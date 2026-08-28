@@ -1,11 +1,6 @@
-// src/pages/admin/Exceptions.tsx
+// frontend/src/pages/admin/Exceptions.tsx
 import { useState } from "react";
-import {
-  ShieldAlert,
-  Bot,
-  ArrowRight,
-  CheckCircle2,
-} from "lucide-react";
+import { ShieldAlert, Bot, ArrowRight, CheckCircle2 } from "lucide-react";
 
 interface ExceptionItem {
   id: string;
@@ -69,7 +64,6 @@ export default function Exceptions() {
         {exceptions.map((ex) => {
           const isResolved = ex.status === "resolved";
           const isHigh = ex.severity === "high";
-
           return (
             <div
               key={ex.id}
@@ -98,18 +92,15 @@ export default function Exceptions() {
                       {ex.resource}
                     </span>
                   </div>
-
                   <h3 className="text-lg font-bold text-slate-900 dark:text-white">
                     {ex.description}
                   </h3>
-
                   <p className="text-sm text-slate-600 dark:text-slate-400">
                     <span className="font-semibold text-slate-700 dark:text-slate-300">
                       Impact:
                     </span>{" "}
                     {ex.impact}
                   </p>
-
                   <div className="p-4 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 flex items-start gap-2">
                     <Bot className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
                     <div className="text-sm text-indigo-900 dark:text-indigo-200">
@@ -121,7 +112,6 @@ export default function Exceptions() {
                     </div>
                   </div>
                 </div>
-
                 <div className="flex md:flex-col justify-end gap-2 shrink-0">
                   {isResolved ? (
                     <div className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold rounded-xl">
