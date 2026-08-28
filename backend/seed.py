@@ -3,13 +3,18 @@ import asyncio
 import os
 from motor.motor_asyncio import AsyncIOMotorClient
 from dotenv import load_dotenv
+from passlib.context import CryptContext
 
 load_dotenv()
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def get_password_hash(password):
+    return pwd_context.hash(password)
 
 async def run_seed():
     client = AsyncIOMotorClient(MONGO_URI)
-    db = client.placify
+    db = client.placify_db  # Matches the database name in database.py
     
     print("🌱 Seeding MongoDB with initial data...")
 
@@ -22,7 +27,7 @@ async def run_seed():
         "min_cgpa": 7.5,
         "max_backlogs": 0,
         "status": "active",
-        "matched_skills": ["Python", "SQL", "Git", "React"]
+        "required_skills": ["Python", "SQL", "Git", "React"]
     })
     print("✅ Added Active Job (TechNova Solutions)")
 
@@ -33,7 +38,35 @@ async def run_seed():
     await db.rooms.insert_many([{"name": "Room 101"}, {"name": "Room 102"}])
     print("✅ Added Interview Panels & Rooms")
 
-    print("🚀 Database seeding complete! You can now refresh the dashboard.")
+    # 3. Seed Default Login Users
+    existing_user = await db.users.find_one({"email": "student@placify.com"})
+    if not existing_user:
+        test_users = [
+            {
+                "name": "Demo Student", 
+                "email": "student@placify.com", 
+                "password": get_password_hash("password123"), 
+                "role": "student"
+            },
+            {
+                "name": "Demo Admin", 
+                "email": "admin@placify.com", 
+                "password": get_password_hash("password123"), 
+                "role": "admin"
+            },
+            {
+                "name": "Demo Panelist", 
+                "email": "panelist@placify.com", 
+                "password": get_password_hash("password123"), 
+                "role": "panelist"
+            }
+        ]
+        await db.users.insert_many(test_users)
+        print("✅ Created default login accounts!")
+    else:
+        print("ℹ️ Default login accounts already exist.")
+
+    print("🚀 Database seeding complete! You can now log in.")
 
 if __name__ == "__main__":
     asyncio.run(run_seed())
