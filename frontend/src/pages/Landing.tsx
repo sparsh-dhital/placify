@@ -1,4 +1,4 @@
-// src/pages/Landing.tsx
+// frontend/src/pages/Landing.tsx
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -34,23 +34,18 @@ export default function Landing() {
   const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name || !formData.email || !formData.message) return;
-
     setStatus("loading");
-
     try {
-      // Point this to your Python backend URL
-      const response = await fetch("http://localhost:8000/api/contact", {
+      const API_URL =
+        import.meta.env.VITE_API_URL || "https://placify-o7ci.onrender.com/api";
+      const response = await fetch(`${API_URL}/contact`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
-
       if (!response.ok) throw new Error("Failed to send message");
-
       setStatus("success");
       setFormData({ name: "", email: "", message: "" });
-
-      // Reset success message after 3 seconds
       setTimeout(() => setStatus("idle"), 3000);
     } catch (error) {
       console.error(error);
@@ -99,14 +94,12 @@ export default function Landing() {
             </span>
             AI Placement Engine • v2.0 Active
           </div>
-
           <h1 className="max-w-5xl text-4xl sm:text-6xl md:text-8xl font-bold tracking-tight text-slate-900 dark:text-white leading-[1.05] mb-6 sm:mb-8">
             Campus Placements, <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 via-purple-400 to-cyan-400">
               Mathematically Optimized.
             </span>
           </h1>
-
           <p className="max-w-2xl text-base sm:text-lg md:text-xl text-slate-600 dark:text-slate-400 font-normal leading-relaxed">
             Leave the spreadsheets behind. Placify intelligently extracts JD
             constraints, maps skill gaps in real-time, and autonomously routes
@@ -122,7 +115,6 @@ export default function Landing() {
           {/* Card 1: JD Extraction */}
           <div className="lg:col-span-2 lg:row-span-1 bg-white dark:bg-[#0A0A12]/80 backdrop-blur-2xl border border-slate-200 dark:border-white/10 rounded-[2rem] sm:rounded-[2.5rem] p-6 sm:p-10 flex flex-col lg:flex-row gap-6 lg:gap-8 justify-between group hover:border-indigo-500/50 transition-all duration-500 shadow-xl shadow-slate-900/5 relative overflow-hidden">
             <div className="absolute -right-20 -top-20 w-64 h-64 bg-indigo-500/10 rounded-full blur-[80px] group-hover:bg-indigo-500/20 transition-colors" />
-
             <div className="flex-1 flex flex-col justify-center z-10">
               <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 flex items-center justify-center mb-4 sm:mb-6 shadow-sm group-hover:scale-110 transition-transform duration-500">
                 <BrainCircuit className="w-6 h-6 sm:w-7 sm:h-7 text-indigo-500 dark:text-indigo-400" />
@@ -136,7 +128,6 @@ export default function Landing() {
                 explainability.
               </p>
             </div>
-
             <div className="flex-1 bg-slate-900 dark:bg-[#05050A] rounded-2xl border border-slate-800 dark:border-white/10 p-4 sm:p-5 font-mono text-[11px] sm:text-xs shadow-md flex flex-col z-10 relative overflow-hidden group-hover:border-indigo-500/40 transition-colors">
               <div className="flex items-center justify-between mb-3 sm:mb-4 pb-2.5 border-b border-slate-800 text-slate-400">
                 <div className="flex items-center gap-2">
@@ -290,7 +281,6 @@ export default function Landing() {
         <section className="w-full max-w-3xl text-left relative z-10 mb-12 px-2 sm:px-0">
           <div className="bg-white dark:bg-[#0A0A12]/90 backdrop-blur-3xl border border-slate-200 dark:border-white/10 rounded-[2rem] sm:rounded-[2.5rem] p-6 sm:p-12 md:p-14 shadow-xl relative overflow-hidden">
             <div className="absolute -top-24 -right-24 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-
             <div className="text-center mb-8 sm:mb-10 relative z-10">
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 text-xs font-semibold mb-3 sm:mb-4">
                 <Sparkles className="w-3.5 h-3.5" /> Enterprise Concierge
@@ -303,7 +293,6 @@ export default function Landing() {
                 technical deployment for your university.
               </p>
             </div>
-
             <form
               className="space-y-4 sm:space-y-5 relative z-10"
               onSubmit={handleContactSubmit}
@@ -358,13 +347,11 @@ export default function Landing() {
                   disabled={status === "loading"}
                 />
               </div>
-
               {status === "error" && (
                 <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 text-sm font-semibold rounded-xl text-center">
                   Error sending message. Please try again.
                 </div>
               )}
-
               <button
                 type="submit"
                 disabled={status === "loading" || status === "success"}
