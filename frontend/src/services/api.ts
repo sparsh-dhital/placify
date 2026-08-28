@@ -1,6 +1,7 @@
 // frontend/src/services/api.ts
 
-export const API_URL = "http://localhost:8000/api";
+export const API_URL =
+  import.meta.env.VITE_API_URL || "https://placify-o7ci.onrender.com/api";
 
 // ==========================================
 // SECURITY HELPER: Auto-inject JWT Tokens
