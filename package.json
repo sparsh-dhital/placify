@@ -4,7 +4,7 @@
   "main": "index.js",
   "scripts": {
     "start:frontend": "cd frontend && npm run dev",
-    "start:backend": "cd backend && uvicorn main:app --reload",
+    "start:backend": "cd backend && uvicorn main:app --host 127.0.0.1 --port 8002 --reload",
     "dev": "concurrently -c \"cyan,magenta\" -n \"REACT,FASTAPI\" \"npm run start:frontend\" \"npm run start:backend\""
   },
   "keywords": [],

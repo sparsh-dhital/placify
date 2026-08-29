@@ -21,20 +21,25 @@ JWT_SECRET = os.getenv("JWT_SECRET", "super_secret_dev_key")
 JWT_ALGORITHM = "HS256"
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+# Single Admin Credential Definition
+ADMIN_EMAIL = "admin@placify.com"
+ADMIN_PASSWORD = "password123"
+
 # --- Models ---
 class LoginRequest(BaseModel):
     email: str
     password: str
+    role: str
 
 class VerifyLoginRequest(BaseModel):
     email: str
     otp: str
+    role: str
 
 class SignupRequest(BaseModel):
     name: str
     email: str
     password: str
-    role: str
 
 class VerifySignupRequest(SignupRequest):
     otp: str
@@ -67,9 +72,17 @@ def create_access_token(data: dict):
 # --- Routes ---
 @router.post("/login/request-otp")
 async def request_login_otp(request: LoginRequest):
-    user = await db.users.find_one({"email": request.email})
-    if not user or not verify_password(request.password, user["password"]):
-        raise HTTPException(status_code=401, detail="Invalid email or password.")
+    role = request.role.lower()
+
+    if role == "admin":
+        if request.email != ADMIN_EMAIL or request.password != ADMIN_PASSWORD:
+            raise HTTPException(status_code=401, detail="Invalid administrator credentials.")
+    else:
+        user = await db.users.find_one({"email": request.email})
+        if not user or not verify_password(request.password, user["password"]):
+            raise HTTPException(status_code=401, detail="Invalid email or password.")
+        if user.get("role") != role:
+            raise HTTPException(status_code=403, detail=f"Access denied. Account is not registered as a {role}.")
     
     otp_code = str(random.randint(100000, 999999))
     expires_at = datetime.utcnow() + timedelta(minutes=10)
@@ -122,19 +135,28 @@ async def verify_login(request: VerifyLoginRequest):
     if not otp_record or datetime.utcnow() > otp_record["expires_at"]:
         raise HTTPException(status_code=400, detail="Invalid or expired verification code.")
         
-    user = await db.users.find_one({"email": request.email})
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found.")
+    role = request.role.lower()
+    if role == "admin":
+        name = "System Administrator"
+        user_id = "admin_id"
+    else:
+        user = await db.users.find_one({"email": request.email})
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found.")
+        name = user.get("name", "User")
+        user_id = str(user["_id"])
+        if user.get("role") != role:
+            raise HTTPException(status_code=403, detail="Role mismatch.")
         
     await db.otps.delete_one({"email": request.email}) 
     
     token = create_access_token({
-        "sub": str(user["_id"]), 
-        "email": user["email"], 
-        "role": user["role"],
-        "name": user.get("name", "User")
+        "sub": user_id, 
+        "email": request.email, 
+        "role": role,
+        "name": name
     })
-    return {"access_token": token, "user": {"name": user.get("name"), "email": user["email"], "role": user["role"]}}
+    return {"access_token": token, "user": {"name": name, "email": request.email, "role": role}}
 
 @router.post("/signup/request-otp")
 async def request_signup_otp(request: ForgotPasswordRequest):
@@ -174,9 +196,6 @@ async def request_signup_otp(request: ForgotPasswordRequest):
                             <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #4f46e5; padding: 24px; border-radius: 0 16px 16px 0; color: #4f46e5; font-size: 28px; font-weight: 800; text-align: center; letter-spacing: 6px; font-family: monospace;">
                                 {otp_code}
                             </div>
-                            <p style="margin: 20px 0 0 0; color: #64748b; font-size: 12px;">
-                                This security token expires in 10 minutes.
-                            </p>
                         </div>
                     </div>
                 </div>
@@ -198,27 +217,22 @@ async def verify_signup(request: VerifySignupRequest):
         "name": request.name,
         "email": request.email,
         "password": get_password_hash(request.password),
-        "role": request.role,
+        "role": "student",
         "created_at": datetime.utcnow()
     }
     
     result = await db.users.insert_one(new_user)
     user_id = str(result.inserted_id)
 
-    if request.role == "student":
-        await db.db["students"].insert_one({
-            "student_id": user_id, "name": request.name, "email": request.email,
-            "branch": "CSE", "cgpa": 0.0, "skills": [], "shortlist_status": "pending"
-        })
-    elif request.role == "panelist":
-        await db.db["panels"].insert_one({
-            "panel_id": user_id, "name": request.name, "email": request.email
-        })
+    await db.db["students"].insert_one({
+        "student_id": user_id, "name": request.name, "email": request.email,
+        "branch": "CSE", "cgpa": 0.0, "skills": [], "shortlist_status": "pending"
+    })
 
     await db.otps.delete_one({"email": request.email}) 
     
-    token = create_access_token({"sub": user_id, "email": request.email, "role": request.role, "name": request.name})
-    return {"access_token": token, "user": {"name": request.name, "email": request.email, "role": request.role}}
+    token = create_access_token({"sub": user_id, "email": request.email, "role": "student", "name": request.name})
+    return {"access_token": token, "user": {"name": request.name, "email": request.email, "role": "student"}}
 
 @router.post("/oauth/callback")
 async def oauth_callback(request: OAuthCallbackRequest):
@@ -282,31 +296,25 @@ async def oauth_callback(request: OAuthCallbackRequest):
             "name": name or "GitHub User",
             "email": email,
             "password": get_password_hash(os.urandom(16).hex()),
-            "role": request.role,
+            "role": "student",
             "created_at": datetime.utcnow(),
             "provider": request.provider
         }
         result = await db.users.insert_one(new_user)
         user_id = str(result.inserted_id)
 
-        if request.role == "student":
-            await db.db["students"].insert_one({
-                "student_id": user_id, "name": new_user["name"], "email": email,
-                "branch": "CSE", "cgpa": 0.0, "skills": [], "shortlist_status": "pending"
-            })
-        elif request.role == "panelist":
-            await db.db["panels"].insert_one({
-                "panel_id": user_id, "name": new_user["name"], "email": email
-            })
+        await db.db["students"].insert_one({
+            "student_id": user_id, "name": new_user["name"], "email": email,
+            "branch": "CSE", "cgpa": 0.0, "skills": [], "shortlist_status": "pending"
+        })
     else:
         user_id = str(user["_id"])
         name = user.get("name", name)
-        request.role = user.get("role", request.role)
 
     token = create_access_token({
-        "sub": user_id, "email": email, "role": request.role, "name": name
+        "sub": user_id, "email": email, "role": "student", "name": name
     })
-    return {"access_token": token, "user": {"name": name, "email": email, "role": request.role}}
+    return {"access_token": token, "user": {"name": name, "email": email, "role": "student"}}
 
 @router.post("/forgot-password/request-otp")
 async def forgot_password_otp(request: ForgotPasswordRequest):
@@ -318,28 +326,7 @@ async def forgot_password_otp(request: ForgotPasswordRequest):
     expires_at = datetime.utcnow() + timedelta(minutes=10)
     
     await db.otps.update_one({"email": request.email}, {"$set": {"otp": otp_code, "expires_at": expires_at}}, upsert=True)
-    
-    try:
-        resend.Emails.send({
-            "from": "Placify Security <onboarding@resend.dev>",
-            "to": ["251fa04i95.sparsh@gmail.com"],
-            "subject": f"Password Reset Code: {otp_code}",
-            "html": f"""
-                <div style="background-color: #0f172a; padding: 40px 20px; font-family: sans-serif;">
-                    <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 24px; padding: 36px;">
-                        <h2 style="color: #0f172a;">Password Reset Code</h2>
-                        <p style="color: #334155;">Your password reset token is:</p>
-                        <div style="background: #f8fafc; border-left: 4px solid #4f46e5; padding: 20px; font-size: 24px; font-weight: bold; color: #4f46e5; text-align: center; letter-spacing: 4px;">
-                            {otp_code}
-                        </div>
-                    </div>
-                </div>
-            """
-        })
-    except Exception as e:
-        print(f"Resend Delivery Error: {str(e)}")
-
-    return {"success": True, "message": "Reset code sent.", "mock_otp": otp_code}
+    return {"success": True, "mock_otp": otp_code}
 
 @router.post("/forgot-password/reset")
 async def reset_password(request: ResetPasswordRequest):

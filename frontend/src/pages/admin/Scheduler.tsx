@@ -2,23 +2,25 @@
 import { useState, useEffect } from "react";
 import {
   Calendar,
-  Play,
-  AlertTriangle,
-  Check,
-  ShieldCheck,
   Clock,
   MapPin,
-  UsersRound,
+  Users,
+  AlertTriangle,
+  Sparkles,
+  RefreshCw,
+  Building2,
+  ShieldCheck,
 } from "lucide-react";
 import { generateSchedule, getActiveJobs } from "../../services/api";
 import type { ScheduleResponse, JobRecord } from "../../services/api";
 
 export default function Scheduler() {
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [activeJobs, setActiveJobs] = useState<JobRecord[]>([]);
   const [selectedJobId, setSelectedJobId] = useState<string>("");
   const [data, setData] = useState<ScheduleResponse | null>(null);
-  const [conflictResolved, setConflictResolved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     getActiveJobs()
@@ -28,41 +30,62 @@ export default function Scheduler() {
           const active =
             res.jobs.find((j) => j.status === "active") || res.jobs[0];
           setSelectedJobId(active.job_id);
+        } else {
+          setIsLoading(false);
         }
       })
-      .catch((err) => console.error("Failed to fetch jobs:", err));
+      .catch((err) => {
+        console.error("Failed to fetch jobs:", err);
+        setError(err.message || "Failed to load active jobs.");
+        setIsLoading(false);
+      });
   }, []);
 
-  const handleGenerate = async () => {
+  useEffect(() => {
     if (!selectedJobId) return;
-    setIsProcessing(true);
-    setData(null);
-    setConflictResolved(false);
+    handleRunScheduler(selectedJobId);
+  }, [selectedJobId]);
+
+  const handleRunScheduler = async (jobId: string) => {
+    setIsGenerating(true);
+    setError(null);
     try {
-      const result = await generateSchedule(selectedJobId);
+      const result = await generateSchedule(jobId);
       setData(result);
-    } catch (error) {
-      console.error(error);
+    } catch (err: any) {
+      console.error("Scheduler execution error:", err);
+      setError(err.message || "Failed to generate interview schedule.");
     } finally {
-      setIsProcessing(false);
+      setIsLoading(false);
+      setIsGenerating(false);
     }
   };
 
-  const handleAcceptAISolution = () => {
-    setConflictResolved(true);
-  };
+  if (isLoading) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center text-center">
+        <div className="w-12 h-12 rounded-full border-t-2 border-indigo-500 animate-spin mb-4"></div>
+        <p className="text-slate-500 dark:text-slate-400 font-medium">
+          Initializing Scheduler Agent & Conflict Resolver...
+        </p>
+      </div>
+    );
+  }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+    <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-slate-200 dark:border-white/10 pb-6">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
-            <Calendar className="w-7 h-7 text-indigo-500" aria-hidden="true" />
-            Interview Scheduler
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 text-indigo-600 dark:text-indigo-400 text-xs font-bold uppercase tracking-wider mb-3">
+            <Sparkles className="w-3.5 h-3.5" /> Autonomous Scheduling Agent
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-3">
+            <Calendar className="w-7 h-7 text-indigo-500" />
+            Interview Roster & Conflict Resolver
           </h1>
           <p className="text-slate-600 dark:text-slate-400 mt-2 text-sm max-w-xl">
-            Map approved shortlists to available rooms and panels. The agent
-            automatically detects bottlenecks and double-bookings.
+            Automatically slot shortlisted candidates into available rooms and
+            panel panels while eliminating timing overlaps.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -70,7 +93,7 @@ export default function Scheduler() {
             <select
               value={selectedJobId}
               onChange={(e) => setSelectedJobId(e.target.value)}
-              className="bg-white dark:bg-[#0A0A12] border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-sm"
+              className="bg-white dark:bg-[#0A0A12] border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-sm"
             >
               {activeJobs.map((j) => (
                 <option key={j.job_id} value={j.job_id}>
@@ -80,182 +103,135 @@ export default function Scheduler() {
             </select>
           )}
           <button
-            onClick={handleGenerate}
-            disabled={isProcessing || !selectedJobId}
-            className="flex items-center justify-center gap-2 py-3 px-6 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-70 disabled:hover:bg-indigo-600 text-white text-sm font-semibold rounded-2xl hover:scale-[1.02] active:scale-95 transition-all cursor-none shadow-lg shadow-indigo-600/25 shrink-0"
+            onClick={() => selectedJobId && handleRunScheduler(selectedJobId)}
+            disabled={isGenerating}
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl transition-all shadow-lg shadow-indigo-600/20 cursor-pointer disabled:opacity-75"
           >
-            {isProcessing ? (
-              <Calendar className="w-4 h-4 animate-bounce" aria-hidden="true" />
-            ) : (
-              <Play className="w-4 h-4" aria-hidden="true" />
-            )}
-            {isProcessing ? "Allocating Resources..." : "Generate AI Schedule"}
+            <RefreshCw
+              className={`w-3.5 h-3.5 ${isGenerating ? "animate-spin" : ""}`}
+            />
+            {isGenerating ? "Optimizing..." : "Re-Run Scheduler"}
           </button>
         </div>
       </div>
 
-      {isProcessing && (
-        <div className="bg-white dark:bg-[#0A0A12]/80 backdrop-blur-2xl border border-slate-200 dark:border-white/10 rounded-[2rem] p-12 shadow-xl shadow-slate-900/5 flex flex-col items-center justify-center text-center">
-          <div className="relative w-20 h-20 flex items-center justify-center mb-6">
-            <div className="absolute inset-0 rounded-full border-t-2 border-indigo-500 animate-spin"></div>
-            <Clock
-              className="w-8 h-8 text-indigo-400 animate-pulse"
-              aria-hidden="true"
-            />
-          </div>
-          <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">
-            Resolving Hard Constraints
-          </h3>
-          <p className="text-sm text-slate-500 font-mono">
-            Checking room capacities, panel availability, and student
-            overlaps...
-          </p>
+      {error && (
+        <div className="p-4 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400 text-xs font-bold rounded-2xl flex items-center gap-2">
+          <AlertTriangle className="w-5 h-5" /> {error}
         </div>
       )}
 
-      {data && !isProcessing && (
-        <div className="space-y-6 animate-in fade-in duration-500">
-          {data.conflict_detected && !conflictResolved && (
-            <div className="bg-amber-50 dark:bg-amber-500/10 border-2 border-amber-400 dark:border-amber-500/30 rounded-[2rem] p-6 sm:p-8 shadow-xl shadow-amber-500/10 relative overflow-hidden">
-              <div className="absolute -top-12 -right-12 w-40 h-40 bg-amber-500/20 blur-3xl rounded-full pointer-events-none" />
-              <div className="flex flex-col md:flex-row gap-6 items-start md:items-center relative z-10">
-                <div className="w-14 h-14 rounded-full bg-amber-100 dark:bg-amber-500/20 flex items-center justify-center shrink-0">
-                  <AlertTriangle className="w-7 h-7 text-amber-600 dark:text-amber-400" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-lg font-bold text-amber-900 dark:text-amber-400 mb-1">
-                    Conflict Detected: {data.conflict_details?.type}
-                  </h3>
-                  <p className="text-sm text-amber-800 dark:text-amber-200/80 mb-3">
-                    {data.conflict_details?.description} <br />
-                    <span className="font-semibold">Impact:</span>{" "}
-                    {data.conflict_details?.impact}
-                  </p>
-                  <div className="p-3 bg-white/60 dark:bg-[#05050A]/50 rounded-xl border border-amber-200 dark:border-amber-500/20 text-sm font-medium text-slate-900 dark:text-white flex items-start gap-2">
-                    <span className="text-amber-600 dark:text-amber-400 font-bold">
-                      AI Suggestion:
-                    </span>
-                    {data.conflict_details?.recommendation}
-                  </div>
-                </div>
-                <div className="flex flex-col gap-2 w-full md:w-auto">
-                  <button
-                    onClick={handleAcceptAISolution}
-                    className="flex items-center justify-center gap-2 px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl transition-all shadow-md shadow-amber-500/20 cursor-none"
-                  >
-                    <Check className="w-5 h-5" /> Accept Solution
-                  </button>
-                  <button className="px-6 py-3 bg-white dark:bg-white/5 hover:bg-slate-50 dark:hover:bg-white/10 text-slate-700 dark:text-slate-300 font-semibold rounded-xl border border-slate-200 dark:border-white/10 transition-all cursor-none">
-                    Manual Override
-                  </button>
-                </div>
-              </div>
+      {data?.conflict_detected && data.conflict_details && (
+        <div className="p-6 bg-amber-50 dark:bg-amber-500/10 border border-amber-300 dark:border-amber-500/30 rounded-[2rem] flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm animate-in fade-in">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-amber-200 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 flex items-center justify-center shrink-0 shadow-inner">
+              <AlertTriangle className="w-6 h-6" />
             </div>
-          )}
+            <div className="space-y-1">
+              <span className="text-[10px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-400">
+                Conflict Detected: {data.conflict_details.type}
+              </span>
+              <h2 className="text-base font-bold text-amber-950 dark:text-amber-200">
+                {data.conflict_details.description}
+              </h2>
+              <p className="text-xs text-amber-800 dark:text-amber-300 font-medium">
+                <strong className="font-bold">Impact:</strong>{" "}
+                {data.conflict_details.impact} |{" "}
+                <strong className="font-bold">Recommendation:</strong>{" "}
+                {data.conflict_details.recommendation}
+              </p>
+            </div>
+          </div>
+          <span className="px-4 py-2 bg-amber-200/60 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300 text-xs font-bold rounded-xl border border-amber-300 dark:border-amber-500/30 shrink-0">
+            Auto-Resolving...
+          </span>
+        </div>
+      )}
 
-          <div
-            className={`bg-white dark:bg-[#0A0A12]/80 backdrop-blur-2xl border border-slate-200 dark:border-white/10 rounded-[2rem] shadow-xl shadow-slate-900/5 overflow-hidden transition-opacity duration-500 ${
-              data.conflict_detected && !conflictResolved
-                ? "opacity-50 pointer-events-none"
-                : "opacity-100"
-            }`}
-          >
-            <div className="p-6 border-b border-slate-200 dark:border-white/10 flex items-center justify-between bg-slate-50/50 dark:bg-white/5">
-              <div>
-                <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-                  Interview Timetable
-                </h2>
-                <p className="text-sm text-slate-500">
-                  Proposed Live Schedule Slots
-                </p>
-              </div>
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold rounded-full">
-                <ShieldCheck className="w-4 h-4" />
-                {conflictResolved ? "Constraints Verified" : "Draft Mode"}
-              </div>
-            </div>
-            <div className="p-6 space-y-8">
-              {["09:00", "09:30", "10:00", "10:30", "11:00"].map((time) => {
-                const slots = data.schedule.filter(
-                  (s) => s.start_time === time,
-                );
-                if (slots.length === 0) return null;
-                return (
-                  <div key={time} className="relative">
-                    <div className="sticky top-0 bg-white/90 dark:bg-[#0A0A12]/90 backdrop-blur-sm py-2 mb-4 border-b border-slate-200 dark:border-white/10 flex items-center gap-3">
-                      <span className="text-lg font-bold font-mono text-indigo-600 dark:text-indigo-400">
-                        {time} AM
-                      </span>
-                      <div className="flex-1 h-px bg-slate-200 dark:border-white/10"></div>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {slots.map((slot) => (
-                        <div
-                          key={slot.id}
-                          className={`p-5 rounded-2xl border transition-all ${
-                            slot.status === "conflict" && !conflictResolved
-                              ? "bg-red-50 dark:bg-red-500/5 border-red-300 dark:border-red-500/30"
-                              : "bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 hover:border-indigo-500/30"
+      <div className="bg-white dark:bg-[#0A0A12]/80 backdrop-blur-2xl border border-slate-200 dark:border-white/10 rounded-[2rem] shadow-xl shadow-slate-900/5 overflow-hidden">
+        <div className="p-6 border-b border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/5 flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <Building2 className="w-5 h-5 text-indigo-500" /> Optimized
+              Interview Matrix
+            </h2>
+            <p className="text-xs text-slate-500">
+              Generated by Placify Schedule Agent with zero scheduling overlaps.
+            </p>
+          </div>
+          <span className="px-3.5 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold flex items-center gap-1.5">
+            <ShieldCheck className="w-4 h-4" /> {data?.schedule?.length || 0}{" "}
+            Slots Booked
+          </span>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b border-slate-100 dark:border-white/5 text-[11px] font-black uppercase tracking-wider text-slate-400 bg-slate-50/30 dark:bg-white/5">
+                <th className="p-5 font-black">Candidate</th>
+                <th className="p-5 font-black">Panelist / Board</th>
+                <th className="p-5 font-black">Location / Room</th>
+                <th className="p-5 font-black">Time Slot</th>
+                <th className="p-5 font-black text-right">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-white/5 text-sm">
+              {data?.schedule && data.schedule.length > 0 ? (
+                data.schedule.map((item) => {
+                  const isConfirmed = item.status === "confirmed";
+                  return (
+                    <tr
+                      key={item.id}
+                      className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
+                    >
+                      <td className="p-5 font-bold text-slate-900 dark:text-white flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0 text-xs">
+                          <Users className="w-4 h-4" />
+                        </div>
+                        {item.student}
+                      </td>
+                      <td className="p-5 font-medium text-slate-800 dark:text-slate-200">
+                        {item.panel}
+                      </td>
+                      <td className="p-5 text-indigo-600 dark:text-indigo-400 font-semibold flex items-center gap-1.5 pt-6">
+                        <MapPin className="w-3.5 h-3.5" /> {item.room}
+                      </td>
+                      <td className="p-5 font-mono text-xs text-slate-600 dark:text-slate-300">
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3.5 h-3.5 text-slate-400" />{" "}
+                          {item.start_time} - {item.end_time}
+                        </span>
+                      </td>
+                      <td className="p-5 text-right">
+                        <span
+                          className={`px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider border ${
+                            isConfirmed
+                              ? "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20"
+                              : "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20"
                           }`}
                         >
-                          <div className="flex items-start justify-between mb-4">
-                            <div>
-                              <h4 className="text-lg font-bold text-slate-900 dark:text-white">
-                                {slot.student}
-                              </h4>
-                              <p className="text-sm text-slate-500 font-mono mt-1">
-                                {slot.start_time} - {slot.end_time}
-                              </p>
-                            </div>
-                            {slot.status === "conflict" &&
-                              !conflictResolved && (
-                                <span className="px-2 py-1 bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 text-[10px] font-bold uppercase rounded border border-red-200 dark:border-red-500/20">
-                                  Conflict
-                                </span>
-                              )}
-                          </div>
-                          <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
-                            <div className="flex items-center gap-1.5">
-                              <MapPin className="w-4 h-4 text-slate-400" />
-                              <span className="font-medium text-slate-900 dark:text-slate-300">
-                                {slot.room}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                              <UsersRound className="w-4 h-4 text-slate-400" />
-                              <span className="font-medium text-slate-900 dark:text-slate-300">
-                                {slot.panel}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            <div
-              className={`p-6 border-t border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/5 flex justify-end transition-opacity ${
-                !data.conflict_detected || conflictResolved
-                  ? "opacity-100"
-                  : "opacity-50 pointer-events-none"
-              }`}
-            >
-              <button
-                onClick={() =>
-                  alert(
-                    "Schedule successfully committed to MongoDB and pushed to Student/Panelist live portals!",
-                  )
-                }
-                className="flex items-center justify-center gap-2 py-3 px-8 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold rounded-xl hover:scale-[1.02] active:scale-95 transition-all cursor-none shadow-lg shadow-emerald-600/25"
-              >
-                <Check className="w-5 h-5" /> Confirm Schedule & Notify Students
-              </button>
-            </div>
-          </div>
+                          {item.status}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td
+                    colSpan={5}
+                    className="p-12 text-center text-slate-400 text-sm font-medium"
+                  >
+                    No schedule slots generated. Please ensure candidate
+                    shortlists are confirmed first.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
-      )}
+      </div>
     </div>
   );
 }

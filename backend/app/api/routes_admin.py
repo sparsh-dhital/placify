@@ -1,4 +1,5 @@
 # backend/app/api/routes_admin.py
+from datetime import date, datetime
 from fastapi import APIRouter, HTTPException, Depends
 from app.agents.jd_agent import analyze_job_description
 from app.agents.match_agent import match_candidates
@@ -9,6 +10,20 @@ from app.core.security import get_current_admin
 from bson import ObjectId
 
 router = APIRouter()
+
+
+def _to_serializable(value):
+    if isinstance(value, ObjectId):
+        return str(value)
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    if isinstance(value, dict):
+        return {str(key): _to_serializable(val) for key, val in value.items()}
+    if isinstance(value, list):
+        return [_to_serializable(item) for item in value]
+    if isinstance(value, tuple):
+        return [_to_serializable(item) for item in value]
+    return value
 
 @router.get("/metrics")
 async def get_admin_metrics(admin: dict = Depends(get_current_admin)):
@@ -169,19 +184,55 @@ async def approve_shortlist(request: ShortlistRequest, admin: dict = Depends(get
 
 @router.post("/schedule/generate")
 async def create_schedule(request: JobRequest, admin: dict = Depends(get_current_admin)):
-    job = await _get_job(request.job_id)
-    approved_students = await db.db["students"].find({"shortlist_status": "approve"}).to_list(length=100)
-    panels = await db.db["panels"].find({}).to_list(length=20)
-    rooms = await db.db["rooms"].find({}).to_list(length=20)
-    if not approved_students:
-        raise HTTPException(status_code=400, detail="No approved students found for scheduling. Please approve candidates in shortlisting first.")
-    schedule = generate_schedule(approved_students, panels, rooms)
-    if schedule.get("success"):
-        for item in schedule["schedule"]:
-            item["company"] = job.get("company", "TechNova Solutions")
-        await db.db["interviews"].delete_many({})
-        await db.db["interviews"].insert_many(schedule["schedule"])
-    return schedule
+    try:
+        job = await _get_job(request.job_id)
+        approved_students = await db.db["students"].find({"shortlist_status": "approve"}).to_list(length=100)
+        panels = await db.db["panels"].find({}).to_list(length=20)
+        rooms = await db.db["rooms"].find({}).to_list(length=20)
+
+        if not approved_students:
+            return _to_serializable({
+                "success": False,
+                "conflict_detected": True,
+                "conflict_details": {
+                    "type": "No Approved Candidates",
+                    "description": "No approved students found for scheduling.",
+                    "impact": "Schedule generation halted.",
+                    "recommendation": "Please approve candidates in shortlisting first."
+                },
+                "schedule": []
+            })
+
+        if not panels or not rooms:
+            missing_resources = []
+            if not panels:
+                missing_resources.append("interview panels")
+            if not rooms:
+                missing_resources.append("rooms")
+            resource_text = " and ".join(missing_resources)
+            return _to_serializable({
+                "success": False,
+                "conflict_detected": True,
+                "conflict_details": {
+                    "type": "Missing scheduling resources",
+                    "description": f"No {resource_text} are configured.",
+                    "impact": "Schedule generation halted.",
+                    "recommendation": "Add the required panels and rooms, then regenerate the schedule."
+                },
+                "schedule": []
+            })
+
+        schedule = generate_schedule(approved_students, panels, rooms)
+        if schedule and schedule.get("success"):
+            for item in schedule.get("schedule", []):
+                item["company"] = job.get("company", "TechNova Solutions")
+            await db.db["interviews"].delete_many({})
+            if schedule.get("schedule"):
+                await db.db["interviews"].insert_many(schedule["schedule"])
+        return _to_serializable(schedule)
+    except Exception as e:
+        print(f"Scheduler Execution Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Scheduler internal error: {str(e)}")
 
 @router.get("/analytics")
 async def get_admin_analytics(admin: dict = Depends(get_current_admin)):

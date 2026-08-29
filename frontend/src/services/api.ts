@@ -12,32 +12,43 @@ const fetchWithAuth = async (endpoint: string, options: RequestInit = {}) => {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...options.headers,
   };
-  const response = await fetch(`${API_URL}${endpoint}`, {
-    ...options,
-    headers,
-  });
 
-  if (!response.ok) {
-    if (response.status === 401 || response.status === 403) {
-      localStorage.removeItem("placify_token");
-      localStorage.removeItem("placify_user");
-      window.location.href = "/login";
+  try {
+    const response = await fetch(`${API_URL}${endpoint}`, {
+      ...options,
+      headers,
+    });
+
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        localStorage.removeItem("placify_token");
+        localStorage.removeItem("placify_user");
+        window.location.href = "/login";
+      }
+
+      const errorData = await response.json().catch(() => ({}));
+      let errMsg = errorData.detail || `Server error: ${response.status}`;
+
+      if (Array.isArray(errMsg)) {
+        errMsg = errMsg
+          .map((e: any) => `${e.loc?.slice(-1)[0] || "Field"}: ${e.msg}`)
+          .join(" | ");
+      }
+
+      throw new Error(
+        typeof errMsg === "string" ? errMsg : JSON.stringify(errMsg),
+      );
     }
 
-    const errorData = await response.json().catch(() => ({}));
-    let errMsg = errorData.detail || `Server error: ${response.status}`;
-
-    if (Array.isArray(errMsg)) {
-      errMsg = errMsg
-        .map((e: any) => `${e.loc?.slice(-1)[0] || "Field"}: ${e.msg}`)
-        .join(" | ");
+    return response.json();
+  } catch (error) {
+    if (error instanceof TypeError) {
+      throw new Error(
+        "Unable to reach the Placify server. Please check the backend connection and try again.",
+      );
     }
-
-    throw new Error(
-      typeof errMsg === "string" ? errMsg : JSON.stringify(errMsg),
-    );
+    throw error;
   }
-  return response.json();
 };
 
 // ==========================================
@@ -75,6 +86,7 @@ export const apiPost = async (endpoint: string, data: any) =>
 export async function requestLoginOtp(credentials: {
   email: string;
   password: string;
+  role: string;
 }) {
   return apiPost("/auth/login/request-otp", credentials);
 }
@@ -82,24 +94,29 @@ export async function requestLoginOtp(credentials: {
 export async function loginUser(credentials: {
   email: string;
   password: string;
+  role: string;
 }) {
   return requestLoginOtp(credentials);
 }
 
-export async function verifyLoginOtp(data: { email: string; otp: string }) {
+export async function verifyLoginOtp(data: {
+  email: string;
+  otp: string;
+  role: string;
+}) {
   return apiPost("/auth/login/verify", data);
 }
 
-export async function requestSignupOtp(email: string) {
-  return apiPost("/auth/signup/request-otp", { email });
+export async function requestSignupOtp(data: { email: string }) {
+  return apiPost("/auth/signup/request-otp", data);
 }
 
 export async function verifySignupOtp(data: any) {
   return apiPost("/auth/signup/verify", data);
 }
 
-export async function requestPasswordResetOtp(email: string) {
-  return apiPost("/auth/forgot-password/request-otp", { email });
+export async function requestPasswordResetOtp(data: { email: string }) {
+  return apiPost("/auth/forgot-password/request-otp", data);
 }
 
 export async function resetPassword(data: any) {
