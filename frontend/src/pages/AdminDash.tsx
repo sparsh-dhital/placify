@@ -118,7 +118,7 @@ export default function AdminDash() {
         </div>
         <div className="flex items-center gap-3">
           <Link
-            to="/admin/jd-analyzer"
+            to="/admin/jds"
             className="inline-flex items-center gap-2 px-5 py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl transition-all shadow-lg shadow-indigo-600/20"
           >
             <FileSpreadsheet className="w-4 h-4" /> Run JD Analyzer

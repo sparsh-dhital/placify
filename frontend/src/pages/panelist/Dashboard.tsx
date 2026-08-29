@@ -43,13 +43,13 @@ export default function PanelistDashboard() {
   const fetchInterviews = async () => {
     try {
       const result = await getPanelInterviews();
-      setData(result);
-      if (
-        result.interviews &&
-        result.interviews.length > 0 &&
-        !activeInterview
-      ) {
-        setActiveInterview(result.interviews[0]);
+      const interviews = result?.interviews || [];
+      setData({ ...result, interviews });
+
+      if (interviews.length > 0) {
+        setActiveInterview((current) => current ?? interviews[0]);
+      } else {
+        setActiveInterview(null);
       }
     } catch (err: any) {
       console.error("Panelist dashboard error:", err);
@@ -61,7 +61,19 @@ export default function PanelistDashboard() {
 
   useEffect(() => {
     fetchInterviews();
+
+    const intervalId = window.setInterval(() => {
+      fetchInterviews();
+    }, 15000);
+
+    return () => window.clearInterval(intervalId);
   }, []);
+
+  useEffect(() => {
+    if (data?.interviews?.length && !activeInterview) {
+      setActiveInterview(data.interviews[0]);
+    }
+  }, [data, activeInterview]);
 
   const handleFeedbackSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -146,9 +158,15 @@ export default function PanelistDashboard() {
             scorecards in real-time.
           </p>
         </div>
-        <div className="rounded-2xl border border-indigo-200 dark:border-indigo-500/20 bg-indigo-50 dark:bg-indigo-500/10 px-5 py-3 text-sm font-bold text-indigo-700 dark:text-indigo-300 shadow-sm flex items-center gap-2">
-          <Calendar className="w-4 h-4" /> {data.interviews?.length || 0}{" "}
-          Interviews Today
+        <div className="flex items-center gap-3">
+          <div className="rounded-2xl border border-indigo-200 dark:border-indigo-500/20 bg-indigo-50 dark:bg-indigo-500/10 px-5 py-3 text-sm font-bold text-indigo-700 dark:text-indigo-300 shadow-sm flex items-center gap-2">
+            <Calendar className="w-4 h-4" /> {data.interviews?.length || 0}{" "}
+            Interviews Today
+          </div>
+          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-700">
+            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+            Live Sync
+          </div>
         </div>
       </header>
 

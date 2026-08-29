@@ -1,14 +1,22 @@
 // src/components/layout/StudentLayout.tsx
-import { Outlet, Link } from "react-router-dom";
+import { Outlet, Link, useNavigate } from "react-router-dom";
 import { Logo } from "../ui/Logo";
 // @ts-expect-error -- ThemeToggle is a JS component without TS declarations
 import ThemeToggle from "../ui/ThemeToggle";
 import AIAssistant from "../ui/AIAssistant";
 import { LogOut, ShieldCheck } from "lucide-react";
+import { clearAuthSession } from "../../services/api";
 
 export default function StudentLayout() {
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    clearAuthSession();
+    navigate("/login", { replace: true });
+  };
+
   return (
-    <div className="flex min-h-screen w-full bg-[#FAFAFA] dark:bg-[#05050A] text-slate-900 dark:text-slate-100 transition-colors duration-500 font-sans flex-col">
+    <div className="flex min-h-screen w-full overflow-x-hidden bg-[#FAFAFA] dark:bg-[#05050A] text-slate-900 dark:text-slate-100 transition-colors duration-500 font-sans flex-col">
       <header className="h-16 bg-white/80 dark:bg-[#0A0A12]/80 backdrop-blur-2xl border-b border-slate-200 dark:border-white/10 flex items-center justify-between px-6 sm:px-10 flex-shrink-0 sticky top-0 z-40">
         <Link
           to="/"
@@ -30,18 +38,19 @@ export default function StudentLayout() {
           </div>
           <ThemeToggle />
           {/* Stylish Premium Red Sign Out Button */}
-          <Link
-            to="/login"
-            className="flex items-center gap-2 text-xs font-bold text-red-500 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 px-4 py-2.5 rounded-xl transition-all shadow-sm cursor-none"
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex items-center gap-2 text-xs font-bold text-red-500 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 px-4 py-2.5 rounded-xl transition-all shadow-sm cursor-pointer"
             aria-label="Sign out of student account"
           >
             <LogOut className="w-4 h-4" /> Sign Out
-          </Link>
+          </button>
         </div>
       </header>
 
       <main
-        className="flex-1 p-6 sm:p-10 focus:outline-none"
+        className="flex-1 overflow-y-auto p-6 sm:p-10 focus:outline-none"
         role="main"
         tabIndex={-1}
       >

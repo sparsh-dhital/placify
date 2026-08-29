@@ -5,6 +5,12 @@ export const API_URL =
 // ==========================================
 // SECURITY & ERROR HELPER
 // ==========================================
+export const clearAuthSession = () => {
+  localStorage.removeItem("placify_token");
+  localStorage.removeItem("placify_user");
+  localStorage.removeItem("placify-auth");
+};
+
 const fetchWithAuth = async (endpoint: string, options: RequestInit = {}) => {
   const token = localStorage.getItem("placify_token");
   const headers = {
@@ -21,8 +27,7 @@ const fetchWithAuth = async (endpoint: string, options: RequestInit = {}) => {
 
     if (!response.ok) {
       if (response.status === 401 || response.status === 403) {
-        localStorage.removeItem("placify_token");
-        localStorage.removeItem("placify_user");
+        clearAuthSession();
         window.location.href = "/login";
       }
 
@@ -79,6 +84,10 @@ export const sanitizeStringArray = (arr: any): string[] => {
 export const apiGet = async (endpoint: string) => fetchWithAuth(endpoint);
 export const apiPost = async (endpoint: string, data: any) =>
   fetchWithAuth(endpoint, { method: "POST", body: JSON.stringify(data) });
+export const apiPut = async (endpoint: string, data: any) =>
+  fetchWithAuth(endpoint, { method: "PUT", body: JSON.stringify(data) });
+export const apiDelete = async (endpoint: string) =>
+  fetchWithAuth(endpoint, { method: "DELETE" });
 
 // ==========================================
 // AUTHENTICATION

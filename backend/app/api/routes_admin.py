@@ -9,6 +9,51 @@ from app.models.pydantic_schemas import JDAnalyzeRequest, JobRequest, ShortlistR
 from app.core.security import get_current_admin
 from bson import ObjectId
 
+
+async def _read_student_registry():
+    students = await db.db["students"].find({}).sort("name", 1).to_list(length=500)
+    return [
+        {
+            "student_id": student.get("student_id") or str(student.get("_id")),
+            "name": student.get("name", "Unknown Student"),
+            "email": student.get("email", ""),
+            "branch": student.get("branch", "Computer Science"),
+            "cgpa": student.get("cgpa", 0.0),
+            "backlogs": student.get("backlogs", 0),
+            "skills": student.get("skills", []),
+            "shortlist_status": student.get("shortlist_status", "pending"),
+            "readiness_score": student.get("readiness_score", 0),
+        }
+        for student in students
+    ]
+
+
+async def _read_room_registry():
+    rooms = await db.db["rooms"].find({}).to_list(length=100)
+    return [
+        {
+            "room_id": str(room.get("room_id") or room.get("_id") or room.get("name", "room")),
+            "room_number": room.get("room_number") or room.get("name") or "Room 101",
+            "building": room.get("building", "Tech Block A"),
+            "capacity": room.get("capacity", 6),
+            "status": room.get("status", "Available"),
+        }
+        for room in rooms
+    ]
+
+
+async def _read_panel_registry():
+    panels = await db.db["panels"].find({}).to_list(length=100)
+    return [
+        {
+            "panel_id": panel.get("panel_id") or panel.get("name") or f"Panel {len(panels)}",
+            "members": panel.get("members", []),
+            "expertise": panel.get("expertise", "General Interview"),
+            "status": panel.get("status", "Active"),
+        }
+        for panel in panels
+    ]
+
 router = APIRouter()
 
 
@@ -283,8 +328,11 @@ async def send_broadcast(data: dict, admin: dict = Depends(get_current_admin)):
 
 @router.get("/panelists")
 async def get_panelists(admin: dict = Depends(get_current_admin)):
-    panels = await db.db["panels"].find({}).to_list(length=50)
-    rooms = await db.db["rooms"].find({}).to_list(length=50)
+    panels = await _read_panel_registry()
+    rooms = await _read_room_registry()
+    students = await _read_student_registry()
+    interviews = await db.db["interviews"].find({}).to_list(length=100)
+
     if not panels:
         panels = [
             {"panel_id": "Panel A", "members": ["Dr. Alan Turing", "Prof. Grace Hopper"], "expertise": "Core Systems & Algorithms", "status": "Active"},
@@ -292,10 +340,173 @@ async def get_panelists(admin: dict = Depends(get_current_admin)):
         ]
     if not rooms:
         rooms = [
-            {"room_number": "Room 101", "building": "Tech Block A", "capacity": 6, "status": "Available"},
-            {"room_number": "Room 102", "building": "Tech Block A", "capacity": 6, "status": "Available"}
+            {"room_id": "Room 101", "room_number": "Room 101", "building": "Tech Block A", "capacity": 6, "status": "Available"},
+            {"room_id": "Room 102", "room_number": "Room 102", "building": "Tech Block A", "capacity": 6, "status": "Available"}
         ]
-    return {"success": True, "panels": panels, "rooms": rooms}
+
+    return {
+        "success": True,
+        "panels": panels,
+        "rooms": rooms,
+        "students": students,
+        "interviews": [
+            {
+                "id": str(item.get("id") or item.get("_id")),
+                "student": item.get("student", "Unknown Student"),
+                "company": item.get("company", "TechNova Solutions"),
+                "room": item.get("room", "Room 101"),
+                "panel": item.get("panel", "Panel A"),
+                "status": item.get("status", "proposed"),
+                "start_time": item.get("start_time", "09:00"),
+                "end_time": item.get("end_time", "09:30"),
+            }
+            for item in interviews
+        ],
+    }
+
+
+@router.get("/students")
+async def get_students(admin: dict = Depends(get_current_admin)):
+    return {"success": True, "students": await _read_student_registry()}
+
+
+@router.post("/students")
+async def create_student(student_data: dict, admin: dict = Depends(get_current_admin)):
+    student_id = (student_data.get("student_id") or student_data.get("email") or f"std-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}").strip()
+    record = {
+        "student_id": student_id,
+        "name": student_data.get("name", "New Student"),
+        "email": student_data.get("email", f"{student_id}@placify.local"),
+        "branch": student_data.get("branch", "Computer Science"),
+        "cgpa": float(student_data.get("cgpa", 0.0)),
+        "backlogs": int(student_data.get("backlogs", 0)),
+        "skills": student_data.get("skills", []),
+        "shortlist_status": student_data.get("shortlist_status", "pending"),
+        "readiness_score": int(student_data.get("readiness_score", 0)),
+    }
+    await db.db["students"].update_one({"student_id": student_id}, {"$set": record}, upsert=True)
+    return {"success": True, "message": "Student record created successfully.", "student": record}
+
+
+@router.put("/students/{student_id}")
+async def update_student(student_id: str, student_data: dict, admin: dict = Depends(get_current_admin)):
+    payload = {k: v for k, v in student_data.items() if v is not None}
+    if not payload:
+        raise HTTPException(status_code=400, detail="No student fields supplied for update.")
+    if "cgpa" in payload:
+        payload["cgpa"] = float(payload["cgpa"])
+    if "backlogs" in payload:
+        payload["backlogs"] = int(payload["backlogs"])
+    if "readiness_score" in payload:
+        payload["readiness_score"] = int(payload["readiness_score"])
+
+    result = await db.db["students"].update_one({"student_id": student_id}, {"$set": payload})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Student not found.")
+    updated = await db.db["students"].find_one({"student_id": student_id})
+    return {"success": True, "message": "Student updated successfully.", "student": updated}
+
+
+@router.delete("/students/{student_id}")
+async def delete_student(student_id: str, admin: dict = Depends(get_current_admin)):
+    result = await db.db["students"].delete_one({"student_id": student_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Student not found.")
+    return {"success": True, "message": "Student removed from registry."}
+
+
+@router.post("/rooms")
+async def create_room(room_data: dict, admin: dict = Depends(get_current_admin)):
+    room_number = (room_data.get("room_number") or room_data.get("name") or "Room 101").strip()
+    record = {
+        "room_id": room_data.get("room_id") or room_number,
+        "room_number": room_number,
+        "building": room_data.get("building", "Tech Block A"),
+        "capacity": int(room_data.get("capacity", 6)),
+        "status": room_data.get("status", "Available"),
+    }
+    await db.db["rooms"].update_one({"room_number": room_number}, {"$set": record}, upsert=True)
+    return {"success": True, "message": "Room saved successfully.", "room": record}
+
+
+@router.put("/rooms/{room_id}")
+async def update_room(room_id: str, room_data: dict, admin: dict = Depends(get_current_admin)):
+    payload = {k: v for k, v in room_data.items() if v is not None}
+    if not payload:
+        raise HTTPException(status_code=400, detail="No room fields supplied for update.")
+    if "capacity" in payload:
+        payload["capacity"] = int(payload["capacity"])
+
+    result = await db.db["rooms"].update_one({"$or": [{"room_id": room_id}, {"room_number": room_id}]}, {"$set": payload})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Room not found.")
+    updated = await db.db["rooms"].find_one({"$or": [{"room_id": room_id}, {"room_number": room_id}]})
+    return {"success": True, "message": "Room updated successfully.", "room": updated}
+
+
+@router.delete("/rooms/{room_id}")
+async def delete_room(room_id: str, admin: dict = Depends(get_current_admin)):
+    result = await db.db["rooms"].delete_one({"$or": [{"room_id": room_id}, {"room_number": room_id}]})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Room not found.")
+    return {"success": True, "message": "Room deleted successfully."}
+
+
+@router.post("/panels")
+async def create_panel(panel_data: dict, admin: dict = Depends(get_current_admin)):
+    panel_id = (panel_data.get("panel_id") or panel_data.get("name") or f"Panel {datetime.utcnow().strftime('%d%H%M')}").strip()
+    record = {
+        "panel_id": panel_id,
+        "members": panel_data.get("members", []),
+        "expertise": panel_data.get("expertise", "General Interview"),
+        "status": panel_data.get("status", "Active"),
+    }
+    await db.db["panels"].update_one({"panel_id": panel_id}, {"$set": record}, upsert=True)
+    return {"success": True, "message": "Panel saved successfully.", "panel": record}
+
+
+@router.put("/panels/{panel_id}")
+async def update_panel(panel_id: str, panel_data: dict, admin: dict = Depends(get_current_admin)):
+    payload = {k: v for k, v in panel_data.items() if v is not None}
+    if not payload:
+        raise HTTPException(status_code=400, detail="No panel fields supplied for update.")
+    result = await db.db["panels"].update_one({"panel_id": panel_id}, {"$set": payload})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Panel not found.")
+    updated = await db.db["panels"].find_one({"panel_id": panel_id})
+    return {"success": True, "message": "Panel updated successfully.", "panel": updated}
+
+
+@router.delete("/panels/{panel_id}")
+async def delete_panel(panel_id: str, admin: dict = Depends(get_current_admin)):
+    result = await db.db["panels"].delete_one({"panel_id": panel_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Panel not found.")
+    return {"success": True, "message": "Panel deleted successfully."}
+
+@router.put("/interviews/{interview_id}/room")
+async def update_interview_room(interview_id: str, payload: dict, admin: dict = Depends(get_current_admin)):
+    update_fields = {}
+    if payload.get("room"):
+        update_fields["room"] = payload["room"]
+    if payload.get("panel"):
+        update_fields["panel"] = payload["panel"]
+    if payload.get("status"):
+        update_fields["status"] = payload["status"]
+
+    if not update_fields:
+        raise HTTPException(status_code=400, detail="Provide at least one interview field to update.")
+
+    result = await db.db["interviews"].update_one(
+        {"$or": [{"id": interview_id}, {"_id": ObjectId(interview_id)}]},
+        {"$set": update_fields},
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Interview record not found.")
+
+    updated = await db.db["interviews"].find_one({"$or": [{"id": interview_id}, {"_id": ObjectId(interview_id)}]})
+    return {"success": True, "message": "Interview assignment updated successfully.", "interview": updated}
+
 
 @router.get("/exceptions")
 async def get_admin_exceptions(admin: dict = Depends(get_current_admin)):

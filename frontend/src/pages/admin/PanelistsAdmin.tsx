@@ -123,12 +123,6 @@ export default function PanelistsAdmin() {
 
   useEffect(() => {
     load();
-
-    const intervalId = window.setInterval(() => {
-      load();
-    }, 15000);
-
-    return () => window.clearInterval(intervalId);
   }, []);
 
   const handleStudentSubmit = async (event: React.FormEvent) => {
@@ -219,10 +213,7 @@ export default function PanelistsAdmin() {
       await apiPut(`/admin/interviews/${interviewId}/room`, { room });
       await load();
     } catch (err: any) {
-      alert(
-        "Failed to reassign room: " +
-          (err.message || "Check whether the backend server is running."),
-      );
+      alert("Failed to reassign room: " + (err.message || "Unknown error"));
     }
   };
 
