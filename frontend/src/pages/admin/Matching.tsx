@@ -61,7 +61,6 @@ export default function Matching() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12">
-      {/* Header & Agent Trigger */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
@@ -108,7 +107,6 @@ export default function Matching() {
         </div>
       </div>
 
-      {/* Processing State */}
       {isProcessing && (
         <div className="bg-white dark:bg-[#0A0A12]/80 backdrop-blur-2xl border border-slate-200 dark:border-white/10 rounded-[2rem] p-12 shadow-xl shadow-slate-900/5 flex flex-col items-center justify-center text-center">
           <div className="relative w-20 h-20 flex items-center justify-center mb-6">
@@ -127,10 +125,8 @@ export default function Matching() {
         </div>
       )}
 
-      {/* Results View */}
       {data && !isProcessing && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in duration-500">
-          {/* Candidates List (Left Column) */}
           <div className="lg:col-span-2 bg-white dark:bg-[#0A0A12]/80 backdrop-blur-2xl border border-slate-200 dark:border-white/10 rounded-[2rem] shadow-xl shadow-slate-900/5 overflow-hidden flex flex-col">
             <div className="p-6 border-b border-slate-200 dark:border-white/10 flex items-center justify-between">
               <div>
@@ -200,7 +196,6 @@ export default function Matching() {
             </div>
           </div>
 
-          {/* Explainability Panel (Right Column) */}
           <div className="bg-white dark:bg-[#0A0A12]/80 backdrop-blur-2xl border border-slate-200 dark:border-white/10 rounded-[2rem] shadow-xl shadow-slate-900/5 p-6 h-fit sticky top-24">
             <h3 className="text-sm font-semibold text-slate-900 dark:text-white mb-6 uppercase tracking-wider flex items-center gap-2">
               <Target className="w-4 h-4 text-indigo-500" aria-hidden="true" />{" "}

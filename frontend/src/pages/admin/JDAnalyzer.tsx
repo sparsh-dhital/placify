@@ -45,7 +45,7 @@ export default function JDAnalyzer() {
     if (fileUrl) URL.revokeObjectURL(fileUrl);
     setFileUrl(URL.createObjectURL(selectedFile));
 
-    event.target.value = ""; // Reset input
+    event.target.value = "";
   };
 
   const handleDragOver = (e: DragEvent) => {
@@ -95,7 +95,6 @@ export default function JDAnalyzer() {
 
       if (activeTab === "upload" && file) {
         analysis = await analyzeJDFile(file);
-        // Auto-generate text representation for publishing
         const formattedText = `Company: ${analysis.company}\nRole: ${analysis.role}\nSalary Package: ${analysis.salary}\n\nEligibility Criteria:\n- Minimum CGPA: ${analysis.min_cgpa}\n- Maximum Active Backlogs: ${analysis.max_backlogs}\n\nRequired Skills:\n${analysis.required_skills.map((s) => `- ${s}`).join("\n")}\n\nPreferred Skills:\n${analysis.preferred_skills.map((s) => `- ${s}`).join("\n")}`;
         setJdText(formattedText);
       } else {
@@ -116,7 +115,7 @@ export default function JDAnalyzer() {
     try {
       await publishActiveJob({ text: jdText });
       alert(
-        "Success! Job description approved and published live to student portals.",
+        "Success! Job description approved and published live to student portals!",
       );
     } catch (err: any) {
       alert("Failed to publish job: " + err.message);
@@ -127,7 +126,6 @@ export default function JDAnalyzer() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12">
-      {/* Header */}
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
           <BrainCircuit
@@ -143,7 +141,6 @@ export default function JDAnalyzer() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-        {/* Input Panel */}
         <div className="bg-white dark:bg-[#0A0A12]/80 backdrop-blur-2xl border border-slate-200 dark:border-white/10 rounded-[2rem] shadow-xl shadow-slate-900/5 overflow-hidden flex flex-col">
           <div className="p-6 border-b border-slate-200 dark:border-white/10 flex items-center justify-between">
             <h2 className="text-lg font-bold text-slate-900 dark:text-white">
@@ -283,7 +280,6 @@ export default function JDAnalyzer() {
           </div>
         </div>
 
-        {/* Output Panel: AI Extracted Results */}
         <div className="bg-white dark:bg-[#0A0A12]/80 backdrop-blur-2xl border border-slate-200 dark:border-white/10 rounded-[2rem] p-6 sm:p-8 shadow-xl shadow-slate-900/5 relative overflow-hidden flex flex-col min-h-0">
           {!result && !isAnalyzing && (
             <div className="min-h-[400px] flex flex-col items-center justify-center text-center opacity-50">
@@ -361,7 +357,6 @@ export default function JDAnalyzer() {
                 </div>
               </div>
 
-              {/* Scrollable Skills Section with pointer-events-auto */}
               <div className="mb-6 pointer-events-auto">
                 <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3 pb-2 border-b border-slate-200 dark:border-white/10">
                   Extracted Skills

@@ -54,7 +54,6 @@ export default function Scheduler() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12">
-      {/* Header & Agent Trigger */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
@@ -95,7 +94,6 @@ export default function Scheduler() {
         </div>
       </div>
 
-      {/* Processing State */}
       {isProcessing && (
         <div className="bg-white dark:bg-[#0A0A12]/80 backdrop-blur-2xl border border-slate-200 dark:border-white/10 rounded-[2rem] p-12 shadow-xl shadow-slate-900/5 flex flex-col items-center justify-center text-center">
           <div className="relative w-20 h-20 flex items-center justify-center mb-6">
@@ -115,10 +113,8 @@ export default function Scheduler() {
         </div>
       )}
 
-      {/* Results View */}
       {data && !isProcessing && (
         <div className="space-y-6 animate-in fade-in duration-500">
-          {/* Conflict Detection Panel */}
           {data.conflict_detected && !conflictResolved && (
             <div className="bg-amber-50 dark:bg-amber-500/10 border-2 border-amber-400 dark:border-amber-500/30 rounded-[2rem] p-6 sm:p-8 shadow-xl shadow-amber-500/10 relative overflow-hidden">
               <div className="absolute -top-12 -right-12 w-40 h-40 bg-amber-500/20 blur-3xl rounded-full pointer-events-none" />
@@ -157,7 +153,6 @@ export default function Scheduler() {
             </div>
           )}
 
-          {/* Schedule Timeline */}
           <div
             className={`bg-white dark:bg-[#0A0A12]/80 backdrop-blur-2xl border border-slate-200 dark:border-white/10 rounded-[2rem] shadow-xl shadow-slate-900/5 overflow-hidden transition-opacity duration-500 ${
               data.conflict_detected && !conflictResolved
@@ -240,7 +235,6 @@ export default function Scheduler() {
                 );
               })}
             </div>
-            {/* Finalization Footer */}
             <div
               className={`p-6 border-t border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/5 flex justify-end transition-opacity ${
                 !data.conflict_detected || conflictResolved

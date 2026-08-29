@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from database import db
 from app.models.pydantic_schemas import FeedbackRequest
 from app.core.security import get_current_panelist
+from bson import ObjectId
 
 router = APIRouter()
 
@@ -15,24 +16,23 @@ async def today(panelist: dict = Depends(get_current_panelist)):
     formatted_interviews = []
     
     for inv in interviews:
-        student = await db.db["students"].find_one({"student_id": inv.get("student_id")})
-        if not student:
-            continue
-            
+        student_name = inv.get("student")
+        student = await db.db["students"].find_one({"name": student_name}) if student_name else None
+        
         formatted_interviews.append({
-            "id": str(inv.get("_id", inv.get("id"))), 
+            "id": str(inv.get("id", inv.get("_id"))), 
             "time": inv.get("start_time"), 
             "status": inv.get("status", "pending"), 
             "room": inv.get("room"), 
             "round": "Technical Round 1", 
-            "company": "TechNova Solutions", 
+            "company": inv.get("company", "TechNova Solutions"), 
             "candidate": {
-                "id": student.get("student_id"), 
-                "name": student.get("name"), 
-                "cgpa": student.get("cgpa"), 
-                "branch": student.get("branch"), 
-                "skills": student.get("skills", []), 
-                "projects": student.get("projects", [])
+                "id": student.get("student_id") if student else "unknown", 
+                "name": student_name or "Unknown Student", 
+                "cgpa": student.get("cgpa", 0.0) if student else 0.0, 
+                "branch": student.get("branch", "CSE") if student else "CSE", 
+                "skills": student.get("skills", []) if student else [], 
+                "projects": student.get("projects", []) if student else []
             }
         })
         
@@ -46,9 +46,18 @@ async def today(panelist: dict = Depends(get_current_panelist)):
 async def feedback(request: FeedbackRequest, panelist: dict = Depends(get_current_panelist)):
     await db.db["feedback"].insert_one(request.model_dump())
     
-    await db.db["interviews"].update_one(
-        {"_id": request.interview_id}, 
+    result = await db.db["interviews"].update_one(
+        {"id": request.interview_id}, 
         {"$set": {"status": "completed"}}
     )
+    
+    if result.matched_count == 0:
+        try:
+            await db.db["interviews"].update_one(
+                {"_id": ObjectId(request.interview_id)}, 
+                {"$set": {"status": "completed"}}
+            )
+        except Exception:
+            pass
     
     return {"success": True, "message": "Feedback securely saved to MongoDB."}

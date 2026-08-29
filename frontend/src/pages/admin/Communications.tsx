@@ -21,10 +21,14 @@ export default function Communications() {
 
   useEffect(() => {
     apiGet("/admin/communications")
-      .then((res: { communications: Communication[] }) =>
-        setComms(res.communications || []),
-      )
-      .catch((err: unknown) => console.error(err));
+      .then((res: { success: boolean; communications: Communication[] }) => {
+        if (res.success) {
+          setComms(res.communications || []);
+        }
+      })
+      .catch((err: unknown) =>
+        console.error("Failed to fetch communications:", err),
+      );
   }, []);
 
   const handleSend = async (e: React.FormEvent) => {
@@ -40,10 +44,13 @@ export default function Communications() {
       alert("Broadcast successfully dispatched to student portals!");
       setTitle("");
       setBody("");
-      const res: { communications: Communication[] } = await apiGet(
-        "/admin/communications",
-      );
-      setComms(res.communications || []);
+      const res = (await apiGet("/admin/communications")) as {
+        success: boolean;
+        communications: Communication[];
+      };
+      if (res.success) {
+        setComms(res.communications || []);
+      }
     } catch (err: any) {
       alert("Failed to send broadcast: " + (err?.message || "Unknown error"));
     } finally {

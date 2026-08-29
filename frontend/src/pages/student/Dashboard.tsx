@@ -33,11 +33,6 @@ import type {
 } from "../../services/api";
 import { AICritic } from "../../components/ui/AICritic";
 
-const emptyInsight = {
-  text: "Upload a resume to get personalized insights.",
-  type: "strength" as const,
-};
-
 export default function StudentDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [data, setData] = useState<StudentDashboardResponse | null>(null);
@@ -46,7 +41,7 @@ export default function StudentDashboard() {
   );
   const [dynamicInsights, setDynamicInsights] = useState<
     { text: string; type: "strength" | "weakness" }[]
-  >([emptyInsight]);
+  >([]);
   const [isParsing, setIsParsing] = useState(false);
   const [selectedFileName, setSelectedFileName] = useState("");
   const [fileUrl, setFileUrl] = useState<string | null>(null);
@@ -105,42 +100,38 @@ export default function StudentDashboard() {
       const result = await parseStudentResume(file, targetJobPayload as any);
       setResumeResult(result);
 
-      const hasEducation =
-        result.parsed?.education && result.parsed.education.length > 0;
-      const hasEmail = Boolean(result.parsed?.email);
+      // Extract LLM agent parsed strengths and weaknesses (2 strengths, 2 weaknesses)
+      const llmStrengths: { text: string; type: "strength" }[] = (
+        result.parsed?.strong_points || []
+      )
+        .slice(0, 2)
+        .map((pt: string) => ({ text: pt, type: "strength" }));
 
-      const insightsList: { text: string; type: "strength" | "weakness" }[] = [
-        {
-          text: hasEducation
-            ? "Keep your education section focused on the most relevant degree, coursework, and achievements."
-            : "Add your education, graduation year, and relevant coursework near the top of your resume.",
+      const llmWeaknesses: { text: string; type: "weakness" }[] = (
+        result.parsed?.weak_points || []
+      )
+        .slice(0, 2)
+        .map((pt: string) => ({ text: pt, type: "weakness" }));
+
+      // Ensure we have exactly 2 of each if LLM count varies
+      while (llmStrengths.length < 2) {
+        llmStrengths.push({
+          text: "Resume demonstrates solid technical foundations and clear academic alignment.",
           type: "strength",
-        },
-        {
-          text:
-            result.parsed?.strong_points?.[0] ||
-            "Lead each project with the outcome you achieved and the tools you used.",
-          type: "strength",
-        },
-        {
-          text:
-            result.parsed?.weak_points?.[0] ||
-            "Add measurable results to your experience bullets, such as speed, scale, revenue, or time saved.",
+        });
+      }
+      while (llmWeaknesses.length < 2) {
+        llmWeaknesses.push({
+          text: "Consider adding more quantifiable metrics and cloud infrastructure tools to project bullet points.",
           type: "weakness",
-        },
-        {
-          text: hasEmail
-            ? "Make sure the contact details at the top of your resume match the profile you use for applications."
-            : "Add a professional email address and portfolio link so employers can contact you quickly.",
-          type: hasEmail ? "strength" : "weakness",
-        },
-      ];
+        });
+      }
 
-      const uniqueInsights = insightsList.filter(
-        (insight, index, all) =>
-          all.findIndex((item) => item.text === insight.text) === index,
-      );
-      setDynamicInsights(uniqueInsights.slice(0, 4));
+      // Strengths first, then weaknesses
+      setDynamicInsights([
+        ...llmStrengths.slice(0, 2),
+        ...llmWeaknesses.slice(0, 2),
+      ]);
 
       const token = localStorage.getItem("placify_token");
       await fetch(`${API_URL}/student/sync-resume`, {
@@ -178,7 +169,7 @@ export default function StudentDashboard() {
     setResumeResult(null);
     setSelectedFileName("");
     setParseError("");
-    setDynamicInsights([emptyInsight]);
+    setDynamicInsights([]);
     if (fileUrl) {
       URL.revokeObjectURL(fileUrl);
       setFileUrl(null);
@@ -198,7 +189,7 @@ export default function StudentDashboard() {
         ai_recommendations: [],
       });
     }
-    setDynamicInsights([emptyInsight]);
+    setDynamicInsights([]);
 
     const token = localStorage.getItem("placify_token");
     try {
@@ -262,7 +253,6 @@ export default function StudentDashboard() {
 
   return (
     <main className="max-w-7xl mx-auto space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20 relative px-4 sm:px-6 lg:px-8 mt-6">
-      {/* 1. TOP BANNER */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-900 rounded-[2.5rem] p-8 sm:p-12 text-white shadow-2xl shadow-indigo-950/25 relative overflow-hidden flex flex-col justify-center border border-indigo-500/40">
           <div className="absolute -top-32 -right-32 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none" />
@@ -293,7 +283,6 @@ export default function StudentDashboard() {
           </div>
         </div>
 
-        {/* Readiness Score Card */}
         <div className="bg-white dark:bg-[#0A0A12]/90 backdrop-blur-3xl border border-slate-200/80 dark:border-white/10 rounded-[2.5rem] p-8 shadow-2xl shadow-slate-900/5 flex flex-col items-center justify-center text-center relative overflow-hidden">
           <div className="absolute top-6 right-6">
             <Sparkles className="w-6 h-6 text-amber-500/80" />
@@ -337,7 +326,6 @@ export default function StudentDashboard() {
         </div>
       </div>
 
-      {/* 2. INTERACTIVE UPLOAD SECTION */}
       <div
         className={`w-full bg-white dark:bg-[#0A0A12] border-2 ${
           selectedFileName && !isParsing
@@ -507,7 +495,6 @@ export default function StudentDashboard() {
         )}
       </div>
 
-      {/* 3. PARSED RESULTS SUMMARY */}
       {resumeResult && (
         <div className="rounded-[2.5rem] border border-indigo-100 bg-indigo-50/40 p-8 sm:p-12 dark:border-indigo-500/10 dark:bg-indigo-900/10 shadow-2xl shadow-slate-900/5 animate-in fade-in zoom-in-95 duration-500 relative overflow-hidden">
           <div className="absolute top-0 right-0 p-8 opacity-5">
@@ -607,9 +594,7 @@ export default function StudentDashboard() {
         </div>
       )}
 
-      {/* 4. BOTTOM GRID */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Active Drives */}
         <div className="bg-white dark:bg-[#0A0A12] border border-slate-200/80 dark:border-white/10 rounded-[2.5rem] p-8 sm:p-12 shadow-2xl shadow-slate-900/5 flex flex-col h-full">
           <div className="flex items-center justify-between mb-8 border-b border-slate-100 dark:border-white/5 pb-6">
             <h2 className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-3">
@@ -753,13 +738,12 @@ export default function StudentDashboard() {
           </div>
         </div>
 
-        {/* Actionable Insights Box */}
         <div className="bg-white dark:bg-[#0A0A12] border border-slate-200/80 dark:border-white/10 rounded-[2.5rem] p-8 sm:p-12 shadow-2xl shadow-slate-900/5 h-full flex flex-col">
           <h3 className="text-xl font-black text-slate-900 dark:text-white mb-8 flex items-center gap-3 border-b border-slate-100 dark:border-white/5 pb-6">
             <BrainCircuit className="w-7 h-7 text-indigo-500" /> AI Insights &
             Feedback
           </h3>
-          <div className="space-y-5 flex-1">
+          <div className="space-y-5 flex-1 flex flex-col justify-center">
             {dynamicInsights.length > 0 ? (
               dynamicInsights.map((insight, idx) => {
                 const isStrength = insight.type === "strength";
@@ -803,37 +787,9 @@ export default function StudentDashboard() {
                 );
               })
             ) : (
-              <div className="space-y-5">
-                <div className="flex gap-5 p-6 rounded-2xl border bg-emerald-50/90 dark:bg-emerald-500/10 border-emerald-300 dark:border-emerald-500/30 text-emerald-950 dark:text-emerald-200 shadow-sm">
-                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 bg-emerald-200 dark:bg-emerald-500/20 text-emerald-700 shadow-sm">
-                    <ShieldCheck className="w-7 h-7" />
-                  </div>
-                  <div className="flex-1">
-                    <span className="block text-[11px] font-black uppercase tracking-widest mb-1.5 text-emerald-700">
-                      Resume Strength
-                    </span>
-                    <p className="text-sm font-semibold leading-relaxed">
-                      Your resume exhibits a clear software engineering
-                      trajectory with robust project execution and high GPA
-                      stability.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex gap-5 p-6 rounded-2xl border bg-amber-50/90 dark:bg-amber-500/10 border-amber-300 dark:border-amber-500/30 text-amber-950 dark:text-amber-200 shadow-sm">
-                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 bg-amber-200 dark:bg-amber-500/20 text-amber-700 shadow-sm">
-                    <TrendingUp className="w-7 h-7" />
-                  </div>
-                  <div className="flex-1">
-                    <span className="block text-[11px] font-black uppercase tracking-widest mb-1.5 text-amber-700">
-                      Growth Area
-                    </span>
-                    <p className="text-sm font-semibold leading-relaxed">
-                      Consider acquiring hands-on experience in containerization
-                      (Docker/Kubernetes) to close current skill gaps.
-                    </p>
-                  </div>
-                </div>
+              <div className="flex-1 flex items-center justify-center text-center p-8 text-slate-400 dark:text-slate-500 text-sm font-medium leading-relaxed">
+                Upload your resume above to trigger our AI agents for dynamic
+                profile analysis.
               </div>
             )}
           </div>
@@ -842,7 +798,6 @@ export default function StudentDashboard() {
 
       <AICritic />
 
-      {/* Tailwind Reset Confirmation Modal */}
       {showResetModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
           <div className="bg-white dark:bg-[#0A0A12] border border-slate-200 dark:border-white/10 rounded-[2.5rem] p-10 max-w-md w-full shadow-2xl scale-in-95 duration-200 relative overflow-hidden">

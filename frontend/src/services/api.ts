@@ -1,5 +1,4 @@
 // frontend/src/services/api.ts
-
 export const API_URL =
   import.meta.env.VITE_API_URL || "https://placify-o7ci.onrender.com/api";
 
@@ -28,7 +27,6 @@ const fetchWithAuth = async (endpoint: string, options: RequestInit = {}) => {
     const errorData = await response.json().catch(() => ({}));
     let errMsg = errorData.detail || `Server error: ${response.status}`;
 
-    // FIX: Parse FastAPI Validation Arrays to prevent [object Object] errors
     if (Array.isArray(errMsg)) {
       errMsg = errMsg
         .map((e: any) => `${e.loc?.slice(-1)[0] || "Field"}: ${e.msg}`)
@@ -284,6 +282,36 @@ export const generateSchedule = async (
   jobId: string,
 ): Promise<ScheduleResponse> =>
   apiPost("/admin/schedule/generate", { job_id: jobId });
+
+export interface ExceptionItem {
+  id: string;
+  severity: "high" | "medium" | "low";
+  resource: string;
+  description: string;
+  impact: string;
+  recommendation: string;
+  confidence: number;
+  status: "pending" | "resolved";
+}
+export const getAdminExceptions = async (): Promise<{
+  success: boolean;
+  exceptions: ExceptionItem[];
+}> => apiGet("/admin/exceptions");
+export const resolveAdminException = async (id: string) =>
+  apiPost(`/admin/exceptions/${id}/resolve`, {});
+
+export interface AuditLogItem {
+  id: string;
+  time: string;
+  agent_name: string;
+  type: "agent" | "human" | "system" | "exception";
+  action: string;
+  details: string;
+}
+export const getAuditLogs = async (): Promise<{
+  success: boolean;
+  logs: AuditLogItem[];
+}> => apiGet("/admin/audit-logs");
 
 // ==========================================
 // STUDENT
@@ -558,7 +586,6 @@ export const parseStudentResume = async (
 ): Promise<ResumeMatchResult> => {
   const resumeText = await resumeParsingAgent(file);
 
-  // Safe fallback to prevent backend 'undefined' errors if a job isn't currently active
   const payload = {
     text: resumeText,
     company: targetJob?.company || "Global Evaluator",

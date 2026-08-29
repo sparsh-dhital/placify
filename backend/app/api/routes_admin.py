@@ -6,6 +6,7 @@ from app.agents.schedule_agent import generate_schedule
 from database import db
 from app.models.pydantic_schemas import JDAnalyzeRequest, JobRequest, ShortlistRequest
 from app.core.security import get_current_admin
+from bson import ObjectId
 
 router = APIRouter()
 
@@ -144,7 +145,7 @@ async def run_eligibility(request: JobRequest, admin: dict = Depends(get_current
     }
 
 @router.post("/matches/generate")
-async def generate_matches(request: JobRequest, admin: dict = Depends(get_current_admin)):
+async def generate_matches_route(request: JobRequest, admin: dict = Depends(get_current_admin)):
     job = await _get_job(request.job_id)
     students = await db.db["students"].find({"cgpa": {"$gte": job.get("min_cgpa", 0)}}).to_list(length=100)
     return match_candidates(job, students)
@@ -244,3 +245,46 @@ async def get_panelists(admin: dict = Depends(get_current_admin)):
             {"room_number": "Room 102", "building": "Tech Block A", "capacity": 6, "status": "Available"}
         ]
     return {"success": True, "panels": panels, "rooms": rooms}
+
+@router.get("/exceptions")
+async def get_admin_exceptions(admin: dict = Depends(get_current_admin)):
+    collections = await db.db.list_collection_names()
+    if "exceptions" not in collections:
+        return {"success": True, "exceptions": []}
+    
+    exceptions = await db.db["exceptions"].find({}).to_list(length=50)
+    formatted = []
+    for ex in exceptions:
+        formatted.append({
+            "id": str(ex.get("_id")),
+            "severity": ex.get("severity", "medium"),
+            "resource": ex.get("resource", "Room 101"),
+            "description": ex.get("description", "Schedule adjustment required."),
+            "impact": ex.get("impact", "Interview slots affected."),
+            "recommendation": ex.get("recommendation", "Review room allocation."),
+            "confidence": ex.get("confidence", 0.90),
+            "status": ex.get("status", "pending")
+        })
+    return {"success": True, "exceptions": formatted}
+
+@router.post("/exceptions/{exception_id}/resolve")
+async def resolve_exception(exception_id: str, admin: dict = Depends(get_current_admin)):
+    await db.db["exceptions"].update_one(
+        {"_id": ObjectId(exception_id)},
+        {"$set": {"status": "resolved"}}
+    )
+    return {"success": True, "message": "Exception marked as resolved."}
+
+@router.get("/audit-logs")
+async def get_audit_logs(admin: dict = Depends(get_current_admin)):
+    collections = await db.db.list_collection_names()
+    if "audit_logs" not in collections:
+        return {
+            "success": True,
+            "logs": [
+                {"id": "l1", "time": "Just now", "agent_name": "Scheduler Agent", "type": "agent", "action": "Generated interview schedule", "details": "Allocated rooms and panels successfully."}
+            ]
+        }
+    logs = await db.db["audit_logs"].find({}).sort("_id", -1).to_list(length=50)
+    formatted = [{**log, "id": str(log["_id"])} for log in logs]
+    return {"success": True, "logs": formatted}

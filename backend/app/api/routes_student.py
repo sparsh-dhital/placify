@@ -85,7 +85,26 @@ async def dashboard(student: dict = Depends(get_current_student)):
         })
         
     job_matches = sorted(job_matches, key=lambda x: x["match_score"], reverse=True)
-    upcoming = await db.db["interviews"].find_one({"student_id": student_id, "status": "proposed"})
+    
+    student_name = student_record.get("name")
+    upcoming_raw = await db.db["interviews"].find_one({
+        "$or": [
+            {"student": student_name},
+            {"student_id": student_id}
+        ],
+        "status": {"$in": ["proposed", "scheduled", "active"]}
+    })
+    
+    upcoming_interview = None
+    if upcoming_raw:
+        upcoming_interview = {
+            "id": str(upcoming_raw.get("id", upcoming_raw.get("_id"))),
+            "company": upcoming_raw.get("company", "TechNova Solutions"),
+            "round": "Technical Round 1",
+            "room": upcoming_raw.get("room", "Room 101"),
+            "time": f"{upcoming_raw.get('start_time')} - {upcoming_raw.get('end_time')}",
+            "panel": upcoming_raw.get("panel", "Panel A")
+        }
 
     is_empty_profile = student_record.get("cgpa", 0) == 0 and not student_record.get("skills")
     calculated_readiness = 0 if is_empty_profile else highest_score
@@ -104,7 +123,7 @@ async def dashboard(student: dict = Depends(get_current_student)):
             "cgpa": student_record.get("cgpa", 0.0), 
             "readiness_score": calculated_readiness
         }, 
-        "upcoming_interview": None, 
+        "upcoming_interview": upcoming_interview, 
         "job_matches": job_matches, 
         "ai_recommendations": ai_recs
     }
@@ -173,7 +192,6 @@ async def parse_resume_llm(payload: ResumeParseRequest, student: dict = Depends(
         llm_response = chat_completion.choices[0].message.content.strip()
         parsed_data = json.loads(llm_response)
 
-        # Fallback if LLM misses name
         if not parsed_data.get("name") or "http" in parsed_data.get("name", ""):
             parsed_data["name"] = student.get("name", "Liz Shelby")
 
@@ -189,7 +207,6 @@ async def parse_resume_llm(payload: ResumeParseRequest, student: dict = Depends(
 
         eligibility_status = "Eligible" if final_score >= 60 else "Borderline"
         
-        # Save name back to student DB record
         await db.db["students"].update_one(
             {"student_id": student["id"]},
             {"$set": {"name": parsed_data.get("name")}}

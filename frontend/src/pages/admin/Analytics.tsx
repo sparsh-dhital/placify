@@ -25,17 +25,25 @@ export default function Analytics() {
 
   useEffect(() => {
     apiGet("/admin/analytics")
-      .then((res: { metrics: Metrics; department_stats: DeptStat[] }) => {
-        setMetrics(res.metrics);
-        setDepartments(res.department_stats);
-      })
-      .catch((err: unknown) => console.error(err))
+      .then(
+        (res: {
+          success: boolean;
+          metrics: Metrics;
+          department_stats: DeptStat[];
+        }) => {
+          if (res.success) {
+            setMetrics(res.metrics);
+            setDepartments(res.department_stats || []);
+          }
+        },
+      )
+      .catch((err: unknown) => console.error("Failed to load analytics:", err))
       .finally(() => setLoading(false));
   }, []);
 
   if (loading) {
     return (
-      <div className="p-8 text-slate-500">
+      <div className="p-8 text-slate-500 font-medium">
         Loading live analytics from MongoDB...
       </div>
     );

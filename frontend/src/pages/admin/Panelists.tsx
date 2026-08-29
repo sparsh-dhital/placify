@@ -26,14 +26,20 @@ export default function Panelists() {
 
   useEffect(() => {
     apiGet("/admin/panelists")
-      .then((res: { panels: Panel[]; rooms: Room[] }) => setData(res))
-      .catch((err: unknown) => console.error(err))
+      .then((res: { success: boolean; panels: Panel[]; rooms: Room[] }) => {
+        if (res.success) {
+          setData({ panels: res.panels || [], rooms: res.rooms || [] });
+        }
+      })
+      .catch((err: unknown) => console.error("Failed to fetch panelists:", err))
       .finally(() => setLoading(false));
   }, []);
 
   if (loading) {
     return (
-      <div className="p-8 text-slate-500">Loading panelists and rooms...</div>
+      <div className="p-8 text-slate-500 font-medium">
+        Loading panelists and rooms from MongoDB...
+      </div>
     );
   }
 

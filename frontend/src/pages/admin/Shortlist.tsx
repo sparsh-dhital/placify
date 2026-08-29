@@ -26,12 +26,10 @@ export default function Shortlist() {
   const [selectedJobId, setSelectedJobId] = useState<string>("");
   const [data, setData] = useState<MatchResponse | null>(null);
 
-  // Track decisions: key is student_id, value is the decision object
   const [decisions, setDecisions] = useState<Record<string, ShortlistDecision>>(
     {},
   );
 
-  // Fetch active jobs on mount
   useEffect(() => {
     getActiveJobs()
       .then((res) => {
@@ -50,14 +48,12 @@ export default function Shortlist() {
       });
   }, []);
 
-  // Fetch AI recommendations when job is selected
   useEffect(() => {
     if (!selectedJobId) return;
     setIsLoading(true);
     generateMatches(selectedJobId)
       .then((result) => {
         setData(result);
-        // Auto-approve candidates with a score > 75 to save time, others default to reject
         const initialDecisions: Record<string, ShortlistDecision> = {};
         result.matches.forEach((match) => {
           initialDecisions[match.student_id] = {
@@ -81,7 +77,6 @@ export default function Shortlist() {
       [studentId]: {
         ...prev[studentId],
         action,
-        // Clear reason if reverting back to AI recommendation patterns
         override_reason:
           action === "approve" ? "" : prev[studentId].override_reason,
       },
@@ -134,7 +129,6 @@ export default function Shortlist() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
@@ -170,7 +164,6 @@ export default function Shortlist() {
         </div>
       </div>
 
-      {/* Main List */}
       <div className="bg-white dark:bg-[#0A0A12]/80 backdrop-blur-2xl border border-slate-200 dark:border-white/10 rounded-[2rem] shadow-xl shadow-slate-900/5 overflow-hidden">
         <div className="p-6 border-b border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/5">
           <h2 className="text-lg font-bold text-slate-900 dark:text-white">
@@ -201,7 +194,6 @@ export default function Shortlist() {
                   className="p-6 flex flex-col md:flex-row gap-6 items-start md:items-center transition-colors hover:bg-slate-50 dark:hover:bg-white/5"
                   role="listitem"
                 >
-                  {/* Candidate Info */}
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-1">
                       <h3 className="text-lg font-bold text-slate-900 dark:text-white">
@@ -223,7 +215,6 @@ export default function Shortlist() {
                     </p>
                   </div>
 
-                  {/* Action Controls */}
                   <div className="w-full md:w-auto flex flex-col gap-3">
                     <div
                       className="flex p-1 bg-slate-100 dark:bg-[#05050A] rounded-xl border border-slate-200 dark:border-white/10"
@@ -262,7 +253,6 @@ export default function Shortlist() {
                       </button>
                     </div>
 
-                    {/* Override Reason Input (Appears if AI recommended high score, but admin rejects) */}
                     {!isApproved && isHighMatch && (
                       <div className="relative animate-in slide-in-from-top-2 duration-300">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -292,7 +282,6 @@ export default function Shortlist() {
           </div>
         )}
 
-        {/* Footer Actions */}
         <div className="p-6 border-t border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/5 flex items-center justify-between">
           <p className="text-xs text-slate-500 flex items-center gap-2">
             <ShieldCheck className="w-4 h-4 text-emerald-500" />

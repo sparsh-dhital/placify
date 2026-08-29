@@ -32,7 +32,7 @@ export default function AdminDash() {
       <div className="min-h-[60vh] flex flex-col items-center justify-center text-center">
         <div className="w-12 h-12 rounded-full border-t-2 border-indigo-500 animate-spin mb-4" />
         <p className="text-slate-500 font-medium">
-          Synchronizing live operational metrics...
+          Synchronizing live operational metrics from MongoDB...
         </p>
       </div>
     );
@@ -76,10 +76,8 @@ export default function AdminDash() {
 
   return (
     <main className="max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500 pb-16 relative overflow-hidden">
-      {/* Ambient Glow */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] sm:w-[800px] h-[300px] bg-gradient-to-b from-indigo-500/10 via-cyan-500/5 to-transparent blur-[120px] pointer-events-none rounded-full hidden dark:block" />
 
-      {/* Header Section */}
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 bg-white dark:bg-[#0A0A12]/80 backdrop-blur-2xl border border-slate-200 dark:border-white/10 rounded-[2.5rem] p-6 sm:p-8 shadow-xl relative z-10">
         <div className="flex flex-col gap-1">
           <h1 className="text-xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
@@ -96,7 +94,6 @@ export default function AdminDash() {
         </div>
       </header>
 
-      {/* KPI Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 relative z-10">
         {kpis.map((kpi, index) => {
           const Icon = kpi.icon;
@@ -129,11 +126,8 @@ export default function AdminDash() {
         })}
       </div>
 
-      {/* Live Operations Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 relative z-10">
-        {/* Left Column: Pending Actions & Schedule */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Pending Actions Card */}
           <div className="bg-white dark:bg-[#0A0A12]/80 backdrop-blur-2xl border border-slate-200 dark:border-white/10 rounded-[2.5rem] p-6 sm:p-8 shadow-xl">
             <div className="flex items-center justify-between mb-6 border-b border-slate-200 dark:border-white/10 pb-4">
               <div>
@@ -181,7 +175,6 @@ export default function AdminDash() {
             </div>
           </div>
 
-          {/* Today's Placement Schedule Card */}
           <div className="bg-white dark:bg-[#0A0A12]/80 backdrop-blur-2xl border border-slate-200 dark:border-white/10 rounded-[2.5rem] p-6 sm:p-8 shadow-xl">
             <div className="flex items-center justify-between mb-6 border-b border-slate-200 dark:border-white/10 pb-4">
               <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
@@ -224,9 +217,7 @@ export default function AdminDash() {
           </div>
         </div>
 
-        {/* Right Column: Agent Activity & Readiness Snapshot */}
         <div className="space-y-6">
-          {/* Agent Activity Feed */}
           <div className="bg-white dark:bg-[#0A0A12]/80 backdrop-blur-2xl border border-slate-200 dark:border-white/10 rounded-[2.5rem] p-6 sm:p-8 shadow-xl">
             <div className="flex items-center justify-between mb-6 border-b border-slate-200 dark:border-white/10 pb-4">
               <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
@@ -259,7 +250,6 @@ export default function AdminDash() {
             </div>
           </div>
 
-          {/* Readiness Snapshot Card */}
           <div className="bg-white dark:bg-[#0A0A12]/80 backdrop-blur-2xl border border-slate-200 dark:border-white/10 rounded-[2.5rem] p-6 sm:p-8 shadow-xl space-y-6">
             <div className="border-b border-slate-200 dark:border-white/10 pb-4">
               <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">

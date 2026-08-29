@@ -1,4 +1,4 @@
-// src/pages/panelist/Dashboard.tsx
+// frontend/src/pages/panelist/Dashboard.tsx
 import { useState, useEffect } from "react";
 import {
   User,
@@ -32,18 +32,16 @@ export default function PanelistDashboard() {
   const [isSynthesizing, setIsSynthesizing] = useState(false);
   const [reportedIssue, setReportedIssue] = useState(false);
 
-  // Submission States
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
 
-  // Fetch live roster from the backend on mount
   useEffect(() => {
     getPanelInterviews()
       .then((res) => {
         if (res.success) {
-          // Map the backend structure to the frontend state structure
           const formattedSchedule = res.interviews.map((int: any) => ({
             id: int.candidate.id,
+            interview_id: int.id,
             name: int.candidate.name,
             time: int.time,
             status: int.status,
@@ -59,7 +57,7 @@ export default function PanelistDashboard() {
           }
         }
       })
-      .catch(console.error)
+      .catch((err) => console.error("Failed to load panel interviews:", err))
       .finally(() => setIsLoading(false));
   }, []);
 
@@ -71,7 +69,7 @@ export default function PanelistDashboard() {
     setIsSynthesizing(true);
     setTimeout(() => {
       setNotes(
-        `AI Synthesized Summary for ${current?.name}:\n• Strong grasp of core data structures and ${current?.skills[0]} fundamentals.\n• Communicated problem-solving approach clearly.\n• Recommended Verdict: Strong Hire for Technical Round 2.`,
+        `AI Synthesized Summary for ${current?.name}:\n• Strong grasp of core data structures and ${current?.skills?.[0] || "system"} fundamentals.\n• Communicated problem-solving approach clearly.\n• Recommended Verdict: Strong Hire for Technical Round 2.`,
       );
       setTechScore(5);
       setVerdict("Hire");
@@ -89,7 +87,7 @@ export default function PanelistDashboard() {
         verdict === "Hire" ? "pass" : verdict === "Reject" ? "fail" : "hold";
 
       await submitInterviewFeedback({
-        interview_id: current.id,
+        interview_id: current.interview_id || current.id,
         technical_score: techScore,
         communication_score: techScore,
         problem_solving_score: techScore,
@@ -130,7 +128,7 @@ export default function PanelistDashboard() {
       <div className="min-h-[60vh] flex flex-col items-center justify-center text-center">
         <div className="w-12 h-12 rounded-full border-t-2 border-indigo-500 animate-spin mb-4"></div>
         <p className="text-slate-500 dark:text-slate-400 font-medium">
-          Loading Interview Roster...
+          Loading Interview Roster from MongoDB...
         </p>
       </div>
     );
@@ -138,9 +136,9 @@ export default function PanelistDashboard() {
 
   if (!current) {
     return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center text-center">
-        <p className="text-slate-500 dark:text-slate-400 font-medium">
-          No interviews scheduled for today.
+      <div className="min-h-[60vh] flex flex-col items-center justify-center text-center bg-white dark:bg-[#0A0A12]/80 rounded-[2.5rem] border border-slate-200 dark:border-white/10 p-12 shadow-xl">
+        <p className="text-slate-500 dark:text-slate-400 font-medium text-base">
+          No live interviews currently scheduled for your panel today.
         </p>
       </div>
     );
@@ -148,10 +146,8 @@ export default function PanelistDashboard() {
 
   return (
     <main className="max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500 pb-16 relative">
-      {/* Ambient Glow Effect */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[350px] bg-gradient-to-b from-indigo-500/10 via-cyan-500/5 to-transparent blur-[120px] pointer-events-none rounded-full hidden dark:block" />
 
-      {/* Header */}
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 bg-white dark:bg-[#0A0A12]/80 backdrop-blur-2xl border border-slate-200 dark:border-white/10 rounded-[2.5rem] p-6 sm:p-8 shadow-xl relative z-10">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
@@ -167,9 +163,7 @@ export default function PanelistDashboard() {
         </div>
       </header>
 
-      {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 relative z-10">
-        {/* Left Column: Schedule Sidebar & Venue Status Widget */}
         <div className="space-y-6">
           <section className="bg-white dark:bg-[#0A0A12]/80 backdrop-blur-2xl border border-slate-200 dark:border-white/10 rounded-[2.5rem] shadow-xl p-6 sm:p-8 flex flex-col h-fit">
             <div className="border-b border-slate-200 dark:border-white/10 pb-4 mb-4">
@@ -208,7 +202,6 @@ export default function PanelistDashboard() {
             </div>
           </section>
 
-          {/* Venue Status & Exception Widget */}
           <section className="bg-white dark:bg-[#0A0A12]/80 backdrop-blur-2xl border border-slate-200 dark:border-white/10 rounded-[2.5rem] shadow-xl p-6 sm:p-8 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/10 pb-3">
               <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
@@ -220,7 +213,7 @@ export default function PanelistDashboard() {
               <p className="flex justify-between">
                 <span>Assigned Room:</span>{" "}
                 <strong className="text-slate-900 dark:text-white">
-                  Lab 2
+                  {current.room}
                 </strong>
               </p>
               <p className="flex justify-between">
@@ -243,7 +236,6 @@ export default function PanelistDashboard() {
           </section>
         </div>
 
-        {/* Evaluation Center */}
         <section className="lg:col-span-2 bg-white dark:bg-[#0A0A12]/80 backdrop-blur-2xl border border-slate-200 dark:border-white/10 rounded-[2.5rem] p-6 sm:p-8 flex flex-col shadow-xl">
           <div className="border-b border-slate-200 dark:border-white/10 pb-6 mb-6 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
             <div>
@@ -281,7 +273,7 @@ export default function PanelistDashboard() {
               </div>
               <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
                 Candidate exhibits strong problem-solving proficiencies in{" "}
-                {current.skills?.join(", ")}.
+                {current.skills?.join(", ") || "core fundamentals"}.
               </p>
             </div>
 
@@ -343,7 +335,7 @@ export default function PanelistDashboard() {
                 onChange={(e) => setNotes(e.target.value)}
                 disabled={current.status === "completed"}
                 placeholder="Type observations or click AI Synthesize Notes..."
-                className="w-full h-28 p-3.5 bg-slate-50 dark:bg-[#05050A] border border-slate-200 dark:border-white/10 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none cursor-text disabled:opacity-60 disabled:cursor-not-allowed"
+                className="w-full h-28 p-3.5 bg-slate-50 dark:bg-[#05050A] border border-slate-200 dark:border-white/10 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none cursor-text disabled:opacity-60 disabled:cursor-not-allowed text-slate-900 dark:text-white"
               />
             </div>
           </div>

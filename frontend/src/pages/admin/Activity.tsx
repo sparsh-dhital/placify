@@ -1,11 +1,7 @@
-// src/pages/admin/Activity.tsx
-import {
-  Bot,
-  User,
-  AlertTriangle,
-  ShieldCheck,
-  Clock,
-} from "lucide-react";
+// frontend/src/pages/admin/Activity.tsx
+import { useState, useEffect } from "react";
+import { Bot, User, AlertTriangle, ShieldCheck, Clock } from "lucide-react";
+import { apiGet } from "../../services/api";
 
 interface AuditLog {
   id: string;
@@ -17,73 +13,19 @@ interface AuditLog {
 }
 
 export default function Activity() {
-  const logs: AuditLog[] = [
-    {
-      id: "l1",
-      time: "10:17 AM",
-      agent_name: "Admin (TPO)",
-      type: "human",
-      action: "Approved recovery plan",
-      details: "Moved TechNova interviews from Room 101 to Room 201.",
-    },
-    {
-      id: "l2",
-      time: "10:16 AM",
-      agent_name: "Scheduler Agent",
-      type: "agent",
-      action: "Generated recovery plan",
-      details:
-        "Calculated alternative room availability for 3 affected candidates.",
-    },
-    {
-      id: "l3",
-      time: "10:15 AM",
-      agent_name: "Exception Agent",
-      type: "exception",
-      action: "Detected Room 101 delay",
-      details: "Flagged high severity operational bottleneck.",
-    },
-    {
-      id: "l4",
-      time: "10:12 AM",
-      agent_name: "Scheduler Agent",
-      type: "agent",
-      action: "Generated interview schedule",
-      details: "Allocated rooms and panels while respecting hard constraints.",
-    },
-    {
-      id: "l5",
-      time: "10:10 AM",
-      agent_name: "Admin (TPO)",
-      type: "human",
-      action: "Approved shortlist",
-      details: "Finalized candidate pool for TechNova Solutions.",
-    },
-    {
-      id: "l6",
-      time: "10:07 AM",
-      agent_name: "Matchmaker Agent",
-      type: "agent",
-      action: "Generated candidate matches",
-      details: "Scored 10 eligible students using skill vector comparison.",
-    },
-    {
-      id: "l7",
-      time: "10:05 AM",
-      agent_name: "Eligibility Agent",
-      type: "agent",
-      action: "Checked 15 students",
-      details: "Filtered candidates based on CGPA >= 7.5 and 0 backlogs.",
-    },
-    {
-      id: "l8",
-      time: "10:02 AM",
-      agent_name: "JD Analyzer Agent",
-      type: "agent",
-      action: "Analyzed TechNova JD",
-      details: "Extracted structured requirements with 92% confidence.",
-    },
-  ];
+  const [logs, setLogs] = useState<AuditLog[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    apiGet("/admin/audit-logs")
+      .then((res: { success: boolean; logs: AuditLog[] }) => {
+        if (res.success) {
+          setLogs(res.logs || []);
+        }
+      })
+      .catch((err) => console.error("Failed to fetch audit logs:", err))
+      .finally(() => setLoading(false));
+  }, []);
 
   const getIcon = (type: AuditLog["type"]) => {
     switch (type) {
@@ -98,9 +40,16 @@ export default function Activity() {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="p-8 text-slate-500 font-medium">
+        Synchronizing immutable audit logs...
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {/* Header */}
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
           <Clock className="w-7 h-7 text-indigo-500" aria-hidden="true" />
@@ -112,7 +61,6 @@ export default function Activity() {
         </p>
       </div>
 
-      {/* Timeline */}
       <div className="bg-white dark:bg-[#0A0A12]/80 backdrop-blur-2xl border border-slate-200 dark:border-white/10 rounded-[2rem] p-6 sm:p-8 shadow-xl shadow-slate-900/5">
         <div
           className="relative border-l border-slate-200 dark:border-white/10 ml-4 space-y-8 py-2"
@@ -120,7 +68,6 @@ export default function Activity() {
         >
           {logs.map((log) => (
             <div key={log.id} className="relative pl-8 group" role="article">
-              {/* Timeline Node Icon */}
               <div className="absolute -left-4 top-0 w-8 h-8 rounded-full bg-white dark:bg-[#05050A] border border-slate-200 dark:border-white/20 flex items-center justify-center shadow-sm">
                 {getIcon(log.type)}
               </div>
