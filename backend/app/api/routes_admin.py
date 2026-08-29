@@ -486,26 +486,47 @@ async def delete_panel(panel_id: str, admin: dict = Depends(get_current_admin)):
 
 @router.put("/interviews/{interview_id}/room")
 async def update_interview_room(interview_id: str, payload: dict, admin: dict = Depends(get_current_admin)):
-    update_fields = {}
-    if payload.get("room"):
-        update_fields["room"] = payload["room"]
-    if payload.get("panel"):
-        update_fields["panel"] = payload["panel"]
-    if payload.get("status"):
-        update_fields["status"] = payload["status"]
+    try:
+        # Extract room value from multiple possible field names
+        room_value = payload.get("room") or payload.get("room_number") or payload.get("room_id")
+        
+        # Build update fields
+        update_fields = {}
+        if room_value is not None:
+            room_str = str(room_value).strip()
+            if room_str:
+                update_fields["room"] = room_str
+        
+        if payload.get("panel"):
+            update_fields["panel"] = payload["panel"]
+        if payload.get("status"):
+            update_fields["status"] = payload["status"]
 
-    if not update_fields:
-        raise HTTPException(status_code=400, detail="Provide at least one interview field to update.")
+        if not update_fields:
+            raise HTTPException(status_code=400, detail="Provide at least one interview field to update.")
 
-    result = await db.db["interviews"].update_one(
-        {"$or": [{"id": interview_id}, {"_id": ObjectId(interview_id)}]},
-        {"$set": update_fields},
-    )
-    if result.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Interview record not found.")
+        # Build flexible query to match interview by id or _id
+        query_conditions = [{"id": interview_id}]
+        try:
+            query_conditions.append({"_id": ObjectId(interview_id)})
+        except Exception:
+            pass
+        
+        query = {"$or": query_conditions} if len(query_conditions) > 1 else query_conditions[0]
 
-    updated = await db.db["interviews"].find_one({"$or": [{"id": interview_id}, {"_id": ObjectId(interview_id)}]})
-    return {"success": True, "message": "Interview assignment updated successfully.", "interview": updated}
+        # Update the interview record
+        result = await db.db["interviews"].update_one(query, {"$set": update_fields})
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail=f"Interview record with id '{interview_id}' not found.")
+
+        # Retrieve and return updated document (whether or not fields were modified)
+        updated = await db.db["interviews"].find_one(query)
+        return {"success": True, "message": "Interview assignment updated successfully.", "interview": updated, "matched": result.matched_count, "modified": result.modified_count}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update interview: {str(e)}")
 
 
 @router.get("/exceptions")

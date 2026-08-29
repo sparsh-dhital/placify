@@ -114,14 +114,9 @@ export default function StudentFeature({ type }: { type: FeatureType }) {
           ? data.job_matches[0]
           : null;
       const targetJobPayload = {
-        company: primaryJob?.company || "TechNova Solutions",
-        role: primaryJob?.role || "Software Engineer",
-        matched_skills: primaryJob?.required_skills || [
-          "Python",
-          "SQL",
-          "Git",
-          "React",
-        ],
+        company: primaryJob?.company || "",
+        role: primaryJob?.role || "",
+        matched_skills: primaryJob?.required_skills || [],
         missing_skills: [],
       };
 
@@ -399,7 +394,13 @@ export default function StudentFeature({ type }: { type: FeatureType }) {
 
       {type === "opportunities" && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div
+            className={`grid gap-6 ${
+              (data.job_matches?.length ?? 0) > 1
+                ? "grid-cols-1 md:grid-cols-2"
+                : "grid-cols-1"
+            }`}
+          >
             {data.job_matches && data.job_matches.length > 0 ? (
               data.job_matches.map((job, idx) => (
                 <div

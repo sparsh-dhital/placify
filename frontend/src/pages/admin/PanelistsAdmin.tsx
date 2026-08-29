@@ -209,10 +209,29 @@ export default function PanelistsAdmin() {
   };
 
   const handleReassignRoom = async (interviewId: string, room: string) => {
+    if (!room?.trim()) return;
+
     try {
-      await apiPut(`/admin/interviews/${interviewId}/room`, { room });
-      await load();
+      await apiPut(`/admin/interviews/${interviewId}/room`, {
+        room: room.trim(),
+      });
+
+      // Optimistically update UI immediately
+      setData((prev) => ({
+        ...prev,
+        interviews: prev.interviews.map((item) =>
+          item.id === interviewId ? { ...item, room: room.trim() } : item,
+        ),
+      }));
+
+      // Reload data from backend to ensure consistency
+      try {
+        await load();
+      } catch (reloadErr) {
+        console.warn("Data reload warning after room update:", reloadErr);
+      }
     } catch (err: any) {
+      console.error("Room update error:", err);
       alert("Failed to reassign room: " + (err.message || "Unknown error"));
     }
   };
@@ -579,12 +598,13 @@ export default function PanelistsAdmin() {
                     </div>
                     <div className="mt-3 flex items-center gap-2">
                       <select
-                        value={interview.room}
+                        value={interview.room || ""}
                         onChange={(e) =>
                           handleReassignRoom(interview.id, e.target.value)
                         }
                         className="flex-1 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#05050A] px-3 py-2 text-xs text-slate-900 dark:text-white"
                       >
+                        <option value="">Select a room...</option>
                         {data.rooms.map((room) => (
                           <option
                             key={room.room_id ?? room.room_number}

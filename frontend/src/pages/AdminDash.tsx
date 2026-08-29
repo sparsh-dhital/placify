@@ -316,7 +316,7 @@ export default function AdminDash() {
                   Average Readiness
                 </span>
                 <strong className="font-mono text-lg text-cyan-300">
-                  {metrics.readiness_stats?.avg_readiness ?? 88}%
+                  {metrics.readiness_stats?.avg_readiness ?? 0}%
                 </strong>
               </div>
               <div className="flex justify-between items-center bg-black/25 backdrop-blur-md p-4 rounded-2xl border border-white/15">

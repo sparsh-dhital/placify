@@ -30,12 +30,12 @@ export default function PanelistDashboard() {
   const [activeInterview, setActiveInterview] = useState<PanelInterview | null>(
     null,
   );
-  const [technicalScore, setTechnicalScore] = useState<number>(8);
-  const [communicationScore, setCommunicationScore] = useState<number>(8);
-  const [problemSolvingScore, setProblemSolvingScore] = useState<number>(8);
-  const [overallResult, setOverallResult] = useState<"pass" | "fail" | "hold">(
-    "pass",
-  );
+  const [technicalScore, setTechnicalScore] = useState<number>(0);
+  const [communicationScore, setCommunicationScore] = useState<number>(0);
+  const [problemSolvingScore, setProblemSolvingScore] = useState<number>(0);
+  const [overallResult, setOverallResult] = useState<
+    "pass" | "fail" | "hold" | ""
+  >("");
   const [comments, setComments] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);

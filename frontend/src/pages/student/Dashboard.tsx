@@ -84,16 +84,9 @@ export default function StudentDashboard() {
           ? data.job_matches[0]
           : null;
       const targetJobPayload = {
-        company: primaryJob?.company || "TechNova Solutions",
-        role: primaryJob?.role || "Software Engineer",
-        matched_skills: primaryJob?.required_skills || [
-          "Python",
-          "Java",
-          "SQL",
-          "React",
-          "Docker",
-          "Git",
-        ],
+        company: primaryJob?.company || "",
+        role: primaryJob?.role || "",
+        matched_skills: primaryJob?.required_skills || [],
         missing_skills: [],
       };
 
@@ -112,23 +105,7 @@ export default function StudentDashboard() {
         .slice(0, 2)
         .map((pt: string) => ({ text: pt, type: "weakness" }));
 
-      while (llmStrengths.length < 2) {
-        llmStrengths.push({
-          text: "Resume demonstrates solid technical foundations and clear academic alignment.",
-          type: "strength",
-        });
-      }
-      while (llmWeaknesses.length < 2) {
-        llmWeaknesses.push({
-          text: "Consider adding more quantifiable metrics and cloud infrastructure tools to project bullet points.",
-          type: "weakness",
-        });
-      }
-
-      setDynamicInsights([
-        ...llmStrengths.slice(0, 2),
-        ...llmWeaknesses.slice(0, 2),
-      ]);
+      setDynamicInsights([...llmStrengths, ...llmWeaknesses]);
 
       const token = localStorage.getItem("placify_token");
       await fetch(`${API_URL}/student/sync-resume`, {
@@ -243,10 +220,11 @@ export default function StudentDashboard() {
     (data.profile.cgpa === 0 ? "N/A" : data.profile.cgpa);
   const readinessScore = isProfileEmpty
     ? 0
-    : (resumeResult?.eligibility_score ?? data.profile.readiness_score ?? 85);
+    : (resumeResult?.eligibility_score ?? data.profile.readiness_score ?? 0);
   const candidateName = data.profile.name || "Student";
   const matchedResumeSkills = resumeResult?.matched_skills ?? [];
   const unmatchedResumeSkills = resumeResult?.missing_skills ?? [];
+  const jobMatches = data.job_matches ?? [];
 
   const getReadinessDescription = (score: number, isEmpty: boolean) => {
     if (isEmpty || score === 0) {
@@ -561,16 +539,10 @@ export default function StudentDashboard() {
                       </li>
                     ))
                   ) : (
-                    <>
-                      <li className="leading-snug font-medium flex items-start gap-2">
-                        <span className="text-indigo-500">•</span> High School
-                        Diploma - Excel High School
-                      </li>
-                      <li className="leading-snug font-medium flex items-start gap-2">
-                        <span className="text-indigo-500">•</span> Bachelor of
-                        Computer Science - Northeastern University
-                      </li>
-                    </>
+                    <li className="leading-snug font-medium flex items-start gap-2 text-slate-500">
+                      <span className="text-indigo-500">•</span> Education
+                      details will appear here once the resume is parsed.
+                    </li>
                   )}
                 </ul>
               </div>
@@ -593,8 +565,8 @@ export default function StudentDashboard() {
                   ))
                 ) : (
                   <span className="text-slate-500 text-sm font-medium bg-white/50 dark:bg-black/20 px-4 py-2 rounded-xl">
-                    Python, Java, JavaScript, HTML, CSS, Visualforce, Windows,
-                    Web Services, AWS, C++, Troubleshooting
+                    No skill vector detected yet. Upload a resume to populate
+                    this section.
                   </span>
                 )}
               </div>
@@ -603,7 +575,7 @@ export default function StudentDashboard() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
         <div className="bg-white dark:bg-[#0A0A12] border border-slate-200/80 dark:border-white/10 rounded-[2.5rem] p-8 sm:p-12 shadow-2xl shadow-slate-900/5 flex flex-col h-full">
           <div className="flex items-center justify-between mb-8 border-b border-slate-100 dark:border-white/5 pb-6">
             <h2 className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-3">
@@ -614,9 +586,11 @@ export default function StudentDashboard() {
             </span>
           </div>
 
-          <div className="space-y-6 flex-1">
-            {data.job_matches && data.job_matches.length > 0 ? (
-              data.job_matches.map((match, idx) => {
+          <div
+            className={`space-y-6 flex-1 ${jobMatches.length > 1 ? "md:grid md:grid-cols-2 md:gap-6 md:space-y-0" : ""}`}
+          >
+            {jobMatches.length > 0 ? (
+              jobMatches.map((match, idx) => {
                 const isHighMatch = match.match_score >= 75;
                 const matchedList = match.matched_skills || [
                   "Python",
@@ -646,10 +620,10 @@ export default function StudentDashboard() {
                         </div>
                         <div>
                           <h3 className="text-xl font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                            {safeStr(match.company) || "TechNova Solutions"}
+                            {safeStr(match.company) || "Company not specified"}
                           </h3>
                           <p className="text-sm font-semibold text-slate-500 mt-1">
-                            {safeStr(match.role) || "Software Engineer"}
+                            {safeStr(match.role) || "Role not specified"}
                           </p>
                         </div>
                       </div>
@@ -665,7 +639,7 @@ export default function StudentDashboard() {
                         ) : (
                           <Sparkles className="w-4 h-4" />
                         )}
-                        {match.match_score || 85}%
+                        {match.match_score ?? 0}%
                       </div>
                     </div>
 
@@ -717,29 +691,28 @@ export default function StudentDashboard() {
                     </div>
                     <div>
                       <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-                        TechNova Solutions
+                        No active drive published
                       </h3>
                       <p className="text-sm font-semibold text-slate-500 mt-1">
-                        Software Engineer
+                        Company and role will update automatically
                       </p>
                     </div>
                   </div>
-                  <div className="px-4 py-2 rounded-xl border text-sm font-black flex items-center gap-2 text-emerald-700 bg-emerald-100 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400">
-                    <CheckCircle2 className="w-4 h-4" /> 85% Match
+                  <div className="px-4 py-2 rounded-xl border text-sm font-black flex items-center gap-2 text-slate-700 bg-slate-100 border-slate-200 dark:bg-white/5 dark:text-slate-300 dark:border-white/10">
+                    <Sparkles className="w-4 h-4" /> 0% Match
                   </div>
                 </div>
                 <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed font-medium mb-4">
-                  Opportunity to design scalable software architectures and
-                  maintain distributed systems. Evaluated on core backend
-                  fundamentals and problem-solving.
+                  No live opportunity is currently available for your profile.
+                  New company matches will appear here when the backend
+                  publishes a drive.
                 </p>
                 <div className="pt-4 border-t border-slate-200 dark:border-white/10">
                   <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3">
                     Required Skills:
                   </p>
                   <p className="text-sm font-medium text-slate-500">
-                    Upload a resume to compare your skills with this
-                    opportunity.
+                    Required skills will populate once a company drive is live.
                   </p>
                 </div>
               </div>
