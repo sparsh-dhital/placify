@@ -72,24 +72,40 @@ export const apiPost = async (endpoint: string, data: any) =>
 // ==========================================
 // AUTHENTICATION
 // ==========================================
+export async function requestLoginOtp(credentials: {
+  email: string;
+  password: string;
+}) {
+  return apiPost("/auth/login/request-otp", credentials);
+}
+
 export async function loginUser(credentials: {
   email: string;
   password: string;
 }) {
-  return apiPost("/auth/login", credentials);
+  return requestLoginOtp(credentials);
 }
+
+export async function verifyLoginOtp(data: { email: string; otp: string }) {
+  return apiPost("/auth/login/verify", data);
+}
+
 export async function requestSignupOtp(email: string) {
   return apiPost("/auth/signup/request-otp", { email });
 }
+
 export async function verifySignupOtp(data: any) {
   return apiPost("/auth/signup/verify", data);
 }
+
 export async function requestPasswordResetOtp(email: string) {
   return apiPost("/auth/forgot-password/request-otp", { email });
 }
+
 export async function resetPassword(data: any) {
   return apiPost("/auth/forgot-password/reset", data);
 }
+
 export async function verifyOAuthCode(
   code: string,
   provider: string,
@@ -332,6 +348,7 @@ export interface UpcomingInterview {
   room: string;
   panel: string;
   status: string;
+  round?: string;
 }
 export interface JobMatch {
   company: string;

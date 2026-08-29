@@ -1,6 +1,6 @@
 // frontend/src/pages/Landing.tsx
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useLocation } from "react-router-dom";
 import {
   ArrowRight,
   BrainCircuit,
@@ -20,6 +20,19 @@ import { Logo } from "../components/ui/Logo";
 
 export default function Landing() {
   const currentYear = new Date().getFullYear();
+  const location = useLocation();
+
+  // Smooth scroll to hash fragment (e.g. #contact) when navigating from other pages
+  useEffect(() => {
+    if (location.hash === "#contact") {
+      const contactElement = document.getElementById("contact");
+      if (contactElement) {
+        setTimeout(() => {
+          contactElement.scrollIntoView({ behavior: "smooth" });
+        }, 150);
+      }
+    }
+  }, [location]);
 
   // Contact Form State Management
   const [formData, setFormData] = useState({
@@ -278,7 +291,10 @@ export default function Landing() {
         </section>
 
         {/* Support/Contact Section Fully Connected to Backend */}
-        <section className="w-full max-w-3xl text-left relative z-10 mb-12 px-2 sm:px-0">
+        <section
+          id="contact"
+          className="w-full max-w-3xl text-left relative z-10 mb-12 px-2 sm:px-0"
+        >
           <div className="bg-white dark:bg-[#0A0A12]/90 backdrop-blur-3xl border border-slate-200 dark:border-white/10 rounded-[2rem] sm:rounded-[2.5rem] p-6 sm:p-12 md:p-14 shadow-xl relative overflow-hidden">
             <div className="absolute -top-24 -right-24 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
             <div className="text-center mb-8 sm:mb-10 relative z-10">

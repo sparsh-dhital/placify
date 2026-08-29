@@ -100,7 +100,6 @@ export default function StudentDashboard() {
       const result = await parseStudentResume(file, targetJobPayload as any);
       setResumeResult(result);
 
-      // Extract LLM agent parsed strengths and weaknesses (2 strengths, 2 weaknesses)
       const llmStrengths: { text: string; type: "strength" }[] = (
         result.parsed?.strong_points || []
       )
@@ -113,7 +112,6 @@ export default function StudentDashboard() {
         .slice(0, 2)
         .map((pt: string) => ({ text: pt, type: "weakness" }));
 
-      // Ensure we have exactly 2 of each if LLM count varies
       while (llmStrengths.length < 2) {
         llmStrengths.push({
           text: "Resume demonstrates solid technical foundations and clear academic alignment.",
@@ -127,7 +125,6 @@ export default function StudentDashboard() {
         });
       }
 
-      // Strengths first, then weaknesses
       setDynamicInsights([
         ...llmStrengths.slice(0, 2),
         ...llmWeaknesses.slice(0, 2),
@@ -251,6 +248,19 @@ export default function StudentDashboard() {
   const matchedResumeSkills = resumeResult?.matched_skills ?? [];
   const unmatchedResumeSkills = resumeResult?.missing_skills ?? [];
 
+  const getReadinessDescription = (score: number, isEmpty: boolean) => {
+    if (isEmpty || score === 0) {
+      return "Upload your resume to calculate your real-time global readiness score.";
+    }
+    if (score >= 85) {
+      return "Your profile is exceptionally optimized for active software engineering drives.";
+    }
+    if (score >= 65) {
+      return "Your profile shows solid alignment, but addressing missing skill gaps will boost competitiveness.";
+    }
+    return "Profile needs attention. Focus on building core technical projects and closing skill gaps.";
+  };
+
   return (
     <main className="max-w-7xl mx-auto space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20 relative px-4 sm:px-6 lg:px-8 mt-6">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -320,8 +330,7 @@ export default function StudentDashboard() {
             </div>
           </div>
           <p className="text-xs text-slate-600 dark:text-slate-400 font-semibold px-4 leading-relaxed">
-            Your profile is exceptionally optimized for active software
-            engineering drives.
+            {getReadinessDescription(readinessScore, isProfileEmpty)}
           </p>
         </div>
       </div>
@@ -821,7 +830,7 @@ export default function StudentDashboard() {
                 onClick={() => setShowResetModal(false)}
                 className="flex-1 py-4 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-700 dark:text-slate-300 text-sm font-bold rounded-2xl transition-all cursor-pointer"
               >
-                Cancel
+                Cancel / Keep
               </button>
               <button
                 onClick={executeDatabaseReset}

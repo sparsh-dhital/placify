@@ -7,8 +7,13 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from passlib.context import CryptContext
 import jwt
+import resend
+from dotenv import load_dotenv
 
 from database import db
+
+load_dotenv()
+resend.api_key = os.getenv("RESEND_API_KEY")
 
 router = APIRouter()
 
@@ -20,6 +25,10 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 class LoginRequest(BaseModel):
     email: str
     password: str
+
+class VerifyLoginRequest(BaseModel):
+    email: str
+    otp: str
 
 class SignupRequest(BaseModel):
     name: str
@@ -56,12 +65,69 @@ def create_access_token(data: dict):
     return jwt.encode(to_encode, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
 # --- Routes ---
-@router.post("/login")
-async def login(request: LoginRequest):
+@router.post("/login/request-otp")
+async def request_login_otp(request: LoginRequest):
     user = await db.users.find_one({"email": request.email})
     if not user or not verify_password(request.password, user["password"]):
         raise HTTPException(status_code=401, detail="Invalid email or password.")
+    
+    otp_code = str(random.randint(100000, 999999))
+    expires_at = datetime.utcnow() + timedelta(minutes=10)
+    
+    await db.otps.update_one(
+        {"email": request.email}, 
+        {"$set": {"otp": otp_code, "expires_at": expires_at}}, 
+        upsert=True
+    )
+    
+    try:
+        resend.Emails.send({
+            "from": "Placify Security <onboarding@resend.dev>",
+            "to": ["251fa04i95.sparsh@gmail.com"],
+            "subject": f"Your Placify Login Verification Code: {otp_code}",
+            "html": f"""
+                <div style="background-color: #0f172a; padding: 40px 20px; font-family: 'Inter', sans-serif;">
+                    <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
+                        <div style="background: linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%); padding: 32px; text-align: left;">
+                            <span style="background: rgba(255, 255, 255, 0.2); color: #ffffff; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 6px 12px; border-radius: 20px; display: inline-block; margin-bottom: 12px;">
+                                Security Dispatch
+                            </span>
+                            <h1 style="color: #ffffff; font-size: 24px; font-weight: 800; margin: 0;">
+                                Login Verification Code
+                            </h1>
+                        </div>
+                        <div style="padding: 36px;">
+                            <p style="margin: 0 0 16px 0; color: #334155; font-size: 15px; line-height: 1.6;">
+                                A login attempt was requested for <strong>{request.email}</strong>. Use the secure one-time passcode below to complete your authentication:
+                            </p>
+                            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #4f46e5; padding: 24px; border-radius: 0 16px 16px 0; color: #4f46e5; font-size: 28px; font-weight: 800; text-align: center; letter-spacing: 6px; font-family: monospace;">
+                                {otp_code}
+                            </div>
+                            <p style="margin: 20px 0 0 0; color: #64748b; font-size: 12px;">
+                                This security token expires in 10 minutes. If you did not initiate this request, please ignore this email.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            """
+        })
+    except Exception as e:
+        print(f"Resend Delivery Error: {str(e)}")
 
+    return {"success": True, "message": "Verification code sent.", "mock_otp": otp_code}
+
+@router.post("/login/verify")
+async def verify_login(request: VerifyLoginRequest):
+    otp_record = await db.otps.find_one({"email": request.email, "otp": request.otp})
+    if not otp_record or datetime.utcnow() > otp_record["expires_at"]:
+        raise HTTPException(status_code=400, detail="Invalid or expired verification code.")
+        
+    user = await db.users.find_one({"email": request.email})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+        
+    await db.otps.delete_one({"email": request.email}) 
+    
     token = create_access_token({
         "sub": str(user["_id"]), 
         "email": user["email"], 
@@ -85,10 +151,40 @@ async def request_signup_otp(request: ForgotPasswordRequest):
         upsert=True
     )
     
-    print(f"\n=======================================")
-    print(f"[OTP KEY] SIGNUP OTP FOR {request.email}: {otp_code}")
-    print(f"=======================================\n")
-    
+    try:
+        resend.Emails.send({
+            "from": "Placify Security <onboarding@resend.dev>",
+            "to": ["251fa04i95.sparsh@gmail.com"],
+            "subject": f"Your Placify Signup Verification Code: {otp_code}",
+            "html": f"""
+                <div style="background-color: #0f172a; padding: 40px 20px; font-family: 'Inter', sans-serif;">
+                    <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
+                        <div style="background: linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%); padding: 32px; text-align: left;">
+                            <span style="background: rgba(255, 255, 255, 0.2); color: #ffffff; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 6px 12px; border-radius: 20px; display: inline-block; margin-bottom: 12px;">
+                                Account Creation
+                            </span>
+                            <h1 style="color: #ffffff; font-size: 24px; font-weight: 800; margin: 0;">
+                                Signup Verification Code
+                            </h1>
+                        </div>
+                        <div style="padding: 36px;">
+                            <p style="margin: 0 0 16px 0; color: #334155; font-size: 15px; line-height: 1.6;">
+                                An account creation was requested for <strong>{request.email}</strong>. Use the secure verification code below:
+                            </p>
+                            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #4f46e5; padding: 24px; border-radius: 0 16px 16px 0; color: #4f46e5; font-size: 28px; font-weight: 800; text-align: center; letter-spacing: 6px; font-family: monospace;">
+                                {otp_code}
+                            </div>
+                            <p style="margin: 20px 0 0 0; color: #64748b; font-size: 12px;">
+                                This security token expires in 10 minutes.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            """
+        })
+    except Exception as e:
+        print(f"Resend Delivery Error: {str(e)}")
+
     return {"success": True, "message": "Verification code sent.", "mock_otp": otp_code}
 
 @router.post("/signup/verify")
@@ -166,7 +262,6 @@ async def oauth_callback(request: OAuthCallbackRequest):
             user_data = user_res.json()
             name = user_data.get("name") or user_data.get("login")
 
-            # Fetch user email securely from GitHub API endpoints
             email_res = await client.get("https://api.github.com/user/emails", headers=headers)
             if email_res.status_code == 200:
                 emails = email_res.json()
@@ -181,7 +276,6 @@ async def oauth_callback(request: OAuthCallbackRequest):
     if not email:
         raise HTTPException(status_code=400, detail="Could not retrieve email from provider.")
 
-    # Check MongoDB for existing user, auto-seed if new
     user = await db.users.find_one({"email": email})
     if not user:
         new_user = {
@@ -224,6 +318,27 @@ async def forgot_password_otp(request: ForgotPasswordRequest):
     expires_at = datetime.utcnow() + timedelta(minutes=10)
     
     await db.otps.update_one({"email": request.email}, {"$set": {"otp": otp_code, "expires_at": expires_at}}, upsert=True)
+    
+    try:
+        resend.Emails.send({
+            "from": "Placify Security <onboarding@resend.dev>",
+            "to": ["251fa04i95.sparsh@gmail.com"],
+            "subject": f"Password Reset Code: {otp_code}",
+            "html": f"""
+                <div style="background-color: #0f172a; padding: 40px 20px; font-family: sans-serif;">
+                    <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 24px; padding: 36px;">
+                        <h2 style="color: #0f172a;">Password Reset Code</h2>
+                        <p style="color: #334155;">Your password reset token is:</p>
+                        <div style="background: #f8fafc; border-left: 4px solid #4f46e5; padding: 20px; font-size: 24px; font-weight: bold; color: #4f46e5; text-align: center; letter-spacing: 4px;">
+                            {otp_code}
+                        </div>
+                    </div>
+                </div>
+            """
+        })
+    except Exception as e:
+        print(f"Resend Delivery Error: {str(e)}")
+
     return {"success": True, "message": "Reset code sent.", "mock_otp": otp_code}
 
 @router.post("/forgot-password/reset")
@@ -235,16 +350,3 @@ async def reset_password(request: ResetPasswordRequest):
     await db.users.update_one({"email": request.email}, {"$set": {"password": get_password_hash(request.new_password)}})
     await db.otps.delete_one({"email": request.email}) 
     return {"success": True, "message": "Password successfully reset."}
-
-@router.post("/seed")
-async def seed_users():
-    existing = await db.users.find_one({"email": "student@placify.com"})
-    if existing: return {"message": "Test users already exist!"}
-    
-    test_users = [
-        {"name": "Demo Student", "email": "student@placify.com", "password": get_password_hash("password123"), "role": "student"},
-        {"name": "Demo Admin", "email": "admin@placify.com", "password": get_password_hash("password123"), "role": "admin"},
-        {"name": "Demo Panelist", "email": "panelist@placify.com", "password": get_password_hash("password123"), "role": "panelist"}
-    ]
-    await db.users.insert_many(test_users)
-    return {"message": "[SUCCESS] Created test accounts!"}

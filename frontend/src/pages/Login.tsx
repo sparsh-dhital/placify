@@ -1,13 +1,20 @@
 // src/pages/Login.tsx
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, ArrowRight, CheckCircle2, HelpCircle } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle2,
+  HelpCircle,
+  Sparkles,
+} from "lucide-react";
 import { Logo } from "../components/ui/Logo";
 // @ts-expect-error
 import ThemeToggle from "../components/ui/ThemeToggle";
 import { cn } from "../utils/cn";
 import {
-  loginUser,
+  requestLoginOtp,
+  verifyLoginOtp,
   requestSignupOtp,
   verifySignupOtp,
   requestPasswordResetOtp,
@@ -16,7 +23,7 @@ import {
 } from "../services/api";
 
 type ViewState = "login" | "signup" | "forgot" | "otp";
-type Role = "ADMIN" | "STUDENT" | "PANELIST";
+type Role = "STUDENT" | "PANELIST" | "ADMIN";
 
 export default function Login() {
   const [view, setView] = useState<ViewState>("login");
@@ -24,15 +31,12 @@ export default function Login() {
     "login",
   );
 
-  // Form Fields
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<Role>("STUDENT");
   const [otpCode, setOtpCode] = useState("");
 
-  // UX States
-  const [isTypingOtp, setIsTypingOtp] = useState(false);
   const [status, setStatus] = useState<
     "idle" | "loading" | "error" | "success"
   >("idle");
@@ -40,8 +44,6 @@ export default function Login() {
   const navigate = useNavigate();
 
   const [pendingLoginData, setPendingLoginData] = useState<any>(null);
-
-  // --- OAUTH CALLBACK INTERCEPTOR (With Ref Guard to Prevent StrictMode Double-Firing) ---
   const oauthProcessedRef = useRef(false);
 
   useEffect(() => {
@@ -72,15 +74,18 @@ export default function Login() {
     }
   }, [view]);
 
-  useEffect(() => {
-    if (view === "login") {
-      if (role === "ADMIN") setEmail("admin@placify.com");
-      if (role === "STUDENT") setEmail("student@placify.com");
-      if (role === "PANELIST") setEmail("panelist@placify.com");
-    } else {
-      setEmail("");
+  const handleAutofillDemo = () => {
+    if (role === "ADMIN") {
+      setEmail("admin@placify.com");
+      setPassword("password123");
+    } else if (role === "STUDENT") {
+      setEmail("student@placify.com");
+      setPassword("password123");
+    } else if (role === "PANELIST") {
+      setEmail("panelist@placify.com");
+      setPassword("password123");
     }
-  }, [role, view]);
+  };
 
   const validateForm = () => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -109,27 +114,8 @@ export default function Login() {
     }, 800);
   };
 
-  const simulateOtpTyping = (mockOtp: string) => {
-    setIsTypingOtp(true);
-    setOtpCode("");
-    setTimeout(() => {
-      let currentIndex = 0;
-      const otpString = String(mockOtp);
-      const typingInterval = setInterval(() => {
-        if (currentIndex <= otpString.length) {
-          setOtpCode(otpString.slice(0, currentIndex));
-          currentIndex++;
-        } else {
-          clearInterval(typingInterval);
-          setIsTypingOtp(false);
-        }
-      }, 150);
-    }, 600);
-  };
-
   const handleSocialLogin = (provider: "Google" | "GitHub") => {
     setStatus("loading");
-
     const redirectUri = encodeURIComponent("http://localhost:5173/login");
     const state = `${role.toLowerCase()}_${provider.toLowerCase()}`;
 
@@ -151,30 +137,28 @@ export default function Login() {
 
     try {
       if (view === "login") {
-        const data = await loginUser({ email, password });
+        validateForm();
+        const data = await requestLoginOtp({ email, password });
         setPendingLoginData(data);
         setOtpContext("login");
         setView("otp");
-        simulateOtpTyping("123456");
+        setStatus("idle");
       } else if (view === "signup") {
         validateForm();
-        const res = await requestSignupOtp(email);
+        await requestSignupOtp(email);
         setOtpContext("signup");
         setView("otp");
-        if (res.mock_otp) simulateOtpTyping(res.mock_otp);
-        else setStatus("idle");
+        setStatus("idle");
       } else if (view === "forgot") {
         validateForm();
-        const res = await requestPasswordResetOtp(email);
+        await requestPasswordResetOtp(email);
         setOtpContext("forgot");
         setView("otp");
-        if (res.mock_otp) simulateOtpTyping(res.mock_otp);
-        else setStatus("idle");
+        setStatus("idle");
       } else if (view === "otp") {
         if (otpContext === "login") {
-          if (otpCode !== "123456")
-            throw new Error("Invalid Verification Code.");
-          handleRouteSuccess(pendingLoginData);
+          const data = await verifyLoginOtp({ email, otp: otpCode });
+          handleRouteSuccess(data);
         } else if (otpContext === "signup") {
           const data = await verifySignupOtp({
             name,
@@ -203,7 +187,7 @@ export default function Login() {
 
   return (
     <main
-      className="min-h-screen flex flex-col selection:bg-indigo-500 selection:text-white relative bg-[#FAFAFA] dark:bg-[#05050A] text-slate-900 dark:text-slate-100 transition-colors duration-500 font-sans overflow-x-hidden"
+      className="min-h-screen flex flex-col selection:bg-indigo-500 selection:text-white relative bg-[#FAFAFA] dark:bg-[#05050A] text-slate-900 dark:text-text-primary transition-colors duration-500 font-sans overflow-x-hidden"
       role="main"
     >
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[350px] bg-gradient-to-b from-indigo-500/10 via-cyan-500/5 to-transparent blur-[120px] pointer-events-none rounded-full hidden dark:block" />
@@ -258,9 +242,20 @@ export default function Login() {
 
               {view !== "otp" && view !== "forgot" && (
                 <fieldset className="space-y-2 animate-in fade-in">
-                  <legend className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                    Select Workspace
-                  </legend>
+                  <div className="flex items-center justify-between mb-2">
+                    <legend className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                      Select Workspace
+                    </legend>
+                    {view === "login" && (
+                      <button
+                        type="button"
+                        onClick={handleAutofillDemo}
+                        className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+                      >
+                        <Sparkles className="w-3 h-3" /> Autofill Demo Account
+                      </button>
+                    )}
+                  </div>
                   <div
                     role="tablist"
                     aria-label="Workspace Role"
@@ -308,13 +303,8 @@ export default function Login() {
                     onChange={(e) => setOtpCode(e.target.value)}
                     placeholder="1 2 3 4 5 6"
                     maxLength={6}
-                    disabled={status === "loading" || isTypingOtp}
-                    className={cn(
-                      "w-full px-4 py-3.5 bg-slate-50 dark:bg-[#05050A] border rounded-xl text-base tracking-[0.3em] font-mono text-center text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-inner",
-                      isTypingOtp
-                        ? "border-indigo-500/50"
-                        : "border-slate-200 dark:border-white/10",
-                    )}
+                    disabled={status === "loading"}
+                    className="w-full px-4 py-3.5 bg-slate-50 dark:bg-[#05050A] border border-slate-200 dark:border-white/10 rounded-xl text-base tracking-[0.3em] font-mono text-center text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-inner"
                   />
                 </div>
               ) : (
@@ -399,12 +389,10 @@ export default function Login() {
 
               <button
                 type="submit"
-                disabled={
-                  status === "loading" || status === "success" || isTypingOtp
-                }
+                disabled={status === "loading" || status === "success"}
                 className="w-full flex items-center justify-center gap-2 py-3.5 px-6 mt-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold rounded-xl transition-all cursor-pointer shadow-lg shadow-indigo-600/25 disabled:opacity-75 disabled:hover:scale-100 active:scale-[0.98] group"
               >
-                {status === "loading" || isTypingOtp ? (
+                {status === "loading" ? (
                   <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 ) : status === "success" &&
                   view === "otp" &&
@@ -539,12 +527,12 @@ export default function Login() {
 
           <div className="flex items-center justify-center gap-2 mt-6">
             <HelpCircle className="w-3.5 h-3.5 text-slate-400" />
-            <a
-              href="mailto:support@placify.com"
+            <Link
+              to="/#contact"
               className="text-center text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors cursor-pointer"
             >
               Need help? Contact Placify Support
-            </a>
+            </Link>
           </div>
         </div>
       </div>
